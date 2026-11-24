@@ -756,7 +756,8 @@ let charts=[];
 function render(){
   const has=S.days.ADAS.size+S.days.DMS.size>0;
   $('srcLine').innerHTML=['ADAS','DMS'].map(k=>{ const a=[...S.days[k]].sort(); return '<span><b>'+k+':</b> '+(a.length?fmtDate(a[0])+' – '+fmtDate(a[a.length-1])+' ('+a.length+' วัน)':'ยังไม่มีข้อมูล')+'</span>'; }).join('')
-    +(S.info&&S.info.ts?'<span>อัพเดตล่าสุด '+fmtTs(S.info.ts)+'</span>':'');
+    +(S.info&&S.info.ts?'<span>อัพเดตล่าสุด '+fmtTs(S.info.ts)+'</span>':'')
+    +(S.local?'<span title="ข้อมูลที่อัพโหลดจะถูกเก็บในเบราว์เซอร์เครื่องนี้เท่านั้น">เก็บข้อมูลในเบราว์เซอร์นี้</span>':'');
   $('dFrom').value=S.from; $('dTo').value=S.to; $('dFrom').min=$('dTo').min=S.gmin; $('dFrom').max=$('dTo').max=S.gmax;
   if(!has){ $('app').hidden=true; $('loading').hidden=false; $('loading').textContent='ยังไม่มีข้อมูล · กด “อัพไฟล์ ADAS” หรือ “อัพไฟล์ DMS” ที่มุมขวาบนเพื่อเริ่มต้น'; return; }
   $('loading').hidden=true; $('app').hidden=false;
@@ -1332,9 +1333,46 @@ $('trBody').addEventListener('click',e=>{
 $('trBody').addEventListener('keydown',e=>{ if(e.key!=='Enter'&&e.key!==' ') return; const th=e.target.closest('th[data-s]'); if(th){ e.preventDefault(); th.click(); } });
 let rz; new ResizeObserver(()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if(S.loaded&&charts.length) charts.forEach(f=>f()); },120); }).observe($('main'));
 
+/* ---------- local database (used when the page runs outside claude.ai, e.g. GitHub Pages) ----------
+   Same small API as the claude.ai database (doc/collection get, set, delete, add, onSnapshot) but stored in this
+   browser with IndexedDB. Data uploaded this way stays on this computer/browser only. */
+async function makeLocalDb(){
+  const mem=new Map(), subs=new Map(); let idb=null;
+  idb=await new Promise(res=>{ try{ const rq=indexedDB.open('adas-dms-dashboard',1);
+    rq.onupgradeneeded=()=>rq.result.createObjectStore('kv'); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>res(null); rq.onblocked=()=>res(null); }catch(e){ res(null); } });
+  if(idb) await new Promise(res=>{ try{ const rq=idb.transaction('kv').objectStore('kv').openCursor();
+    rq.onsuccess=()=>{ const c=rq.result; if(c){ mem.set(c.key,c.value); c.continue(); } else res(); }; rq.onerror=()=>res(); }catch(e){ res(); } });
+  try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+  const fail=t=>{ const n=t.error&&t.error.name; return Object.assign(new Error((t.error&&t.error.message)||'บันทึกลงเบราว์เซอร์ไม่ได้'),{code:n==='QuotaExceededError'?'quota_exceeded':'internal'}); };
+  const write=(fn)=>!idb?Promise.resolve():new Promise((res,rej)=>{ const t=idb.transaction('kv','readwrite'); fn(t.objectStore('kv')); t.oncomplete=()=>res(); t.onerror=()=>rej(fail(t)); t.onabort=()=>rej(fail(t)); });
+  const snap=path=>{ const v=mem.get(path); return {id:path.split('/').pop(),exists:v!==undefined,data:()=>v}; };
+  const notify=path=>{ const a=subs.get(path); if(a) setTimeout(()=>a.slice().forEach(cb=>{ try{ cb(snap(path)); }catch(e){} }),0); };
+  const api={
+    persistent:!!idb,
+    doc(path){ return {
+      id:path.split('/').pop(),
+      async get(){ return snap(path); },
+      async set(obj){ await write(o=>o.put(obj,path)); mem.set(path,obj); notify(path); },
+      async delete(){ await write(o=>o.delete(path)); mem.delete(path); notify(path); },
+      onSnapshot(cb){ let a=subs.get(path); if(!a) subs.set(path,a=[]); a.push(cb); setTimeout(()=>cb(snap(path)),0); return ()=>{ const i=a.indexOf(cb); if(i>=0) a.splice(i,1); }; }
+    }; },
+    collection(name){ const pre=name+'/'; let lim=1e9, ord=null;
+      const q={
+        limit(n){ lim=n; return q; },
+        orderBy(f,dir){ ord=[f,dir]; return q; },
+        async get(){ let arr=[]; for(const [k,v] of mem) if(k.startsWith(pre)&&k.indexOf('/',pre.length)<0) arr.push([k,v]);
+          if(ord){ const [f,dir]=ord, m=dir==='desc'?-1:1; arr.sort((a,b)=>(a[1][f]>b[1][f]?1:a[1][f]<b[1][f]?-1:0)*m); }
+          arr=arr.slice(0,lim); return {docs:arr.map(([k,v])=>({id:k.slice(pre.length),exists:true,data:()=>v})),size:arr.length,empty:!arr.length}; },
+        async add(obj){ const id='u'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); const d=api.doc(name+'/'+id); await d.set(obj); return d; }
+      }; return q; }
+  };
+  return api;
+}
+
 /* ---------- boot ---------- */
 (async function boot(){
   try{ db=await claude.use('db'); }catch(e){ db=null; }
+  if(!db){ try{ db=await makeLocalDb(); S.local=true; }catch(e){ db=null; } }
   try{ userCap=await claude.use('user'); S.canWrite=userCap&&userCap.can?userCap.can('data.write'):null; }catch(e){ userCap=null; }
   setButtons();
   if(!db){ $('loading').innerHTML='ยังเชื่อมต่อฐานข้อมูลไม่ได้ · เปิดหน้านี้ผ่าน claude.ai และเข้าสู่ระบบเพื่อดูและอัพโหลดข้อมูล'; $('srcLine').textContent='ไม่ได้เชื่อมต่อฐานข้อมูล'; return; }
