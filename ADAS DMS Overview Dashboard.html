@@ -1,0 +1,1352 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>ADAS DMS Overview Dashboard</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: navy header with the two upload buttons, sticky filter bar, KPI row, one line chart per question
+   (ADAS vs DMS, ADAS by alarm, DMS by alarm), result bars, vehicle ranking, data status. Same look as the SCA comparison dashboard. */
+:root{
+  --bg:#eaeef3; --card:#ffffff; --ink:#14202f; --ink2:#465468; --muted:#6b7686; --line:#dde2e9; --soft:#f1f4f8;
+  --brand:#14202f; --teal:#0e7c86; --teal-ink:#0b5f68; --teal-soft:#e3f1f4; --coral:#f2453d;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948; --sx:#898781;
+  --r-true:#d92d20; --r-false:#9aa0a6; --r-nc:#14202f; --r-nv:#e3a008;
+  --grid:#e1e0d9; --axis:#c3c2b7;
+  --shadow:0 1px 2px rgba(20,32,47,.06),0 6px 18px rgba(20,32,47,.07);
+  --head1:#14202f; --head2:#223a55;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e141b; --card:#18212c; --ink:#e8edf3; --ink2:#b4c0cf; --muted:#8a97a8; --line:#2a3544; --soft:#1f2a37;
+  --brand:#e8edf3; --teal:#3ab0bb; --teal-ink:#7fd3dc; --teal-soft:#16363b;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#0ca30c; --s7:#9085e9; --s8:#e66767; --sx:#898781;
+  --r-true:#e66767; --r-false:#8a97a8; --r-nc:#d5dce6; --r-nv:#c98500;
+  --grid:#2c2c2a; --axis:#383835; --shadow:0 1px 2px rgba(0,0,0,.4);
+  --head1:#0b1118; --head2:#16263a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e141b; --card:#18212c; --ink:#e8edf3; --ink2:#b4c0cf; --muted:#8a97a8; --line:#2a3544; --soft:#1f2a37;
+  --brand:#e8edf3; --teal:#3ab0bb; --teal-ink:#7fd3dc; --teal-soft:#16363b;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#0ca30c; --s7:#9085e9; --s8:#e66767; --sx:#898781;
+  --r-true:#e66767; --r-false:#8a97a8; --r-nc:#d5dce6; --r-nv:#c98500;
+  --grid:#2c2c2a; --axis:#383835; --shadow:0 1px 2px rgba(0,0,0,.4);
+  --head1:#0b1118; --head2:#16263a; color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:'Prompt','Noto Sans Thai',system-ui,sans-serif;font-size:14px;line-height:1.5}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+svg text{font-family:'Prompt','Noto Sans Thai',system-ui,sans-serif}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* header */
+.top{background:linear-gradient(90deg,var(--head1),var(--head2));color:#fff;border-bottom:3px solid var(--coral)}
+.top .in{max-width:1500px;margin:0 auto;padding-block:14px;display:flex;align-items:center;gap:14px 18px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;min-width:0;flex:1 1 300px}
+.logo{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.16);display:grid;place-items:center;flex:none}
+.top h1{margin:0;font-size:20px;font-weight:600;line-height:1.25}
+.top .sub{font-size:12.5px;opacity:.85;font-weight:300}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn{border:1px solid rgba(255,255,255,.55);background:rgba(255,255,255,.12);color:#fff;border-radius:10px;padding:8px 14px;cursor:pointer;display:inline-flex;gap:8px;align-items:center;font-weight:500;transition:background .15s}
+.btn:hover:not(:disabled){background:rgba(255,255,255,.26)}
+.btn.adas{border-color:#86b6ef}
+.btn.dms{border-color:#f2a07a}
+.btn .dotk{width:9px;height:9px;border-radius:50%}
+.btn.adas .dotk{background:#6da7ec}.btn.dms .dotk{background:#f08a5d}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn:focus-visible,.seg button:focus-visible,.chip:focus-visible,.lg button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,th.sortable:focus-visible{outline:3px solid #5fb3c0;outline-offset:2px}
+.srcline{flex-basis:100%;font-size:12px;opacity:.88;font-weight:300;display:flex;gap:6px 22px;flex-wrap:wrap}
+
+/* upload panel */
+.up{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:16px 20px;margin-top:16px;border:2px solid var(--teal)}
+.up h2{margin:0 0 6px;font-size:15px;font-weight:600}
+.up .row{display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center}
+.up .meta{color:var(--ink2);font-size:13px}
+.bar{height:8px;border-radius:99px;background:var(--soft);overflow:hidden;margin:10px 0 4px}
+.bar>i{display:block;height:100%;width:0;background:var(--teal);transition:width .15s}
+.pbtn{border:0;border-radius:10px;padding:8px 16px;font-weight:500;cursor:pointer}
+.pbtn.go{background:var(--teal);color:#fff}
+.pbtn.go:hover{background:var(--teal-ink)}
+.pbtn.no{background:var(--soft);color:var(--ink2)}
+.pbtn:disabled{opacity:.55;cursor:not-allowed}
+.err{color:#b42318;font-weight:500}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .err{color:#ff8f86}}
+:root[data-theme="dark"] .err{color:#ff8f86}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0}
+.stat{background:var(--soft);border-radius:10px;padding:8px 12px}
+.stat b{display:block;font-size:18px;font-weight:600}
+.stat span{font-size:12px;color:var(--ink2)}
+
+/* filters */
+.filters{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.filters .in{max-width:1500px;margin:0 auto;padding-block:10px;display:flex;gap:10px 26px;flex-wrap:wrap;align-items:flex-end}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f>label,.f>.lb{font-size:11.5px;font-weight:500;color:var(--ink2);text-transform:uppercase;letter-spacing:.6px}
+.dates{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dates input,.f select{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:6px 10px;color:var(--ink);max-width:100%}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;cursor:pointer;color:var(--ink2);font-size:12.5px}
+.chip:hover{background:var(--teal-soft);color:var(--teal-ink)}
+.seg{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;padding:6px 14px;border-radius:8px;cursor:pointer;color:var(--ink2);font-weight:500;white-space:nowrap}
+.seg button:hover{background:var(--teal-soft)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--card)}
+
+main{max-width:1500px;margin:0 auto;padding-block:16px 40px}
+.card{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:18px 20px;min-width:0}
+.sec{margin-top:16px}
+.sec[hidden]{display:none!important}
+.bkl{display:grid;gap:2px;margin:6px 0 10px}
+.bkl button{all:unset;box-sizing:border-box;display:grid;grid-template-columns:1fr auto 64px;gap:10px;padding:5px 8px;border-radius:8px;cursor:pointer;font-variant-numeric:tabular-nums}
+.bkl button:hover{background:var(--soft)}
+.bkl button[aria-pressed="true"]{background:var(--teal-soft);box-shadow:inset 0 0 0 2px var(--teal)}
+.bkl button:focus-visible{outline:3px solid #5fb3c0;outline-offset:2px}
+.bkl .n,.bkl b{text-align:right}
+.trg{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:8px 0 12px}
+.trg button{all:unset;box-sizing:border-box;cursor:pointer;border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;border-left-width:6px}
+.trg button:hover{background:var(--soft)}
+.trg button[aria-pressed="true"]{background:var(--teal-soft);box-shadow:inset 0 0 0 2px var(--teal)}
+.trg button:focus-visible{outline:3px solid #5fb3c0;outline-offset:2px}
+.trg b{font-size:24px;font-weight:600;line-height:1.2}.trg span{font-size:12px;color:var(--ink2)}
+.trs{display:block;width:100%;height:auto;max-width:760px}
+.trs text{fill:var(--muted);font-size:11px}
+.badge{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:500;color:#fff;white-space:nowrap}
+.dtools label{display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--ink2)}
+.dtools select{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:5px 8px}
+
+.tabs{display:flex;gap:4px;margin-top:16px;overflow-x:auto;border-bottom:2px solid var(--line);scrollbar-width:thin}
+.tabs button{all:unset;cursor:pointer;white-space:nowrap;padding:10px 18px;font-weight:600;color:var(--ink2);border-bottom:3px solid transparent;margin-bottom:-2px;border-radius:8px 8px 0 0}
+.tabs button:hover{background:var(--teal-soft);color:var(--teal-ink)}
+.tabs button[aria-selected="true"]{color:var(--teal-ink);border-bottom-color:var(--teal)}
+.tabs button:focus-visible{outline:3px solid #5fb3c0;outline-offset:-3px}
+.sec>h2{margin:0 0 2px;font-size:16px;font-weight:600;display:flex;align-items:center;gap:10px}
+.sec>h2:before{content:"";width:5px;height:18px;border-radius:3px;background:var(--coral);flex:none}
+.sec .desc{margin:0 0 10px;color:var(--ink2);font-size:12.5px;font-weight:300}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.kpi{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:14px 18px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kpi .lbl{font-size:12.5px;color:var(--ink2);font-weight:500;display:flex;align-items:center;gap:7px}
+.kpi .val{font-size:32px;font-weight:600;line-height:1.2}
+.kpi .sm{font-size:12px;color:var(--ink2)}
+.sw{width:11px;height:11px;border-radius:3px;display:inline-block;flex:none}
+
+/* charts */
+.lg{display:flex;gap:6px 8px;flex-wrap:wrap;margin-bottom:8px}
+.lg button{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:4px 12px 4px 9px;cursor:pointer;font-size:12.5px;color:var(--ink)}
+.lg button:hover{background:var(--soft)}
+.lg button[aria-pressed="false"]{opacity:.5}
+.lg button[aria-pressed="false"] .sw{background:transparent!important;box-shadow:inset 0 0 0 2px var(--sx)}
+.lg .n{color:var(--ink2);font-variant-numeric:tabular-nums}
+.chartwrap{position:relative;width:100%}
+.chartwrap svg{display:block;width:100%;height:auto;overflow:visible}
+.note{font-size:12px;color:var(--ink2);margin:8px 0 0}
+details.tv{margin-top:8px;font-size:12.5px;color:var(--ink2)}
+details.tv summary{cursor:pointer;display:inline-block;padding:2px 0}
+.tscroll{overflow:auto;max-height:420px;border:1px solid var(--line);border-radius:12px;margin-top:6px}
+table.t{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
+table.t th{position:sticky;top:0;background:var(--soft);text-align:right;padding:7px 10px;font-weight:600;color:var(--ink2);border-bottom:1px solid var(--line);white-space:nowrap}
+table.t td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.t th:first-child,table.t td:first-child{text-align:left}
+table.t tbody tr:hover{background:var(--soft)}
+table.t th.sortable{cursor:pointer;user-select:none}
+table.t tr.pick{cursor:pointer}
+.tip{position:fixed;z-index:50;pointer-events:none;background:var(--card);color:var(--ink);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.18);border-radius:10px;padding:8px 11px;font-size:12.5px;min-width:160px;max-width:300px;opacity:0;transition:opacity .08s}
+.tip.on{opacity:1}
+.tip .tt{color:var(--ink2);font-size:12px;margin-bottom:4px}
+.tip .tr{display:flex;align-items:center;gap:8px;padding:1px 0}
+.tip .tl{flex:1;color:var(--ink2)}
+.tip .tv{font-weight:600;font-variant-numeric:tabular-nums}
+
+/* result bars */
+.res{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.rb{border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-width:0}
+.rb h3{margin:0 0 8px;font-size:14px;font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.stack{display:flex;height:22px;border-radius:6px;overflow:hidden;gap:2px;background:var(--soft)}
+.stack i{display:block;min-width:3px;height:100%}
+.rl{margin-top:10px;display:grid;gap:3px;font-size:13px}
+.rl .r{display:flex;align-items:center;gap:8px}
+.rl .nm{flex:1;color:var(--ink2)}
+.rl b{font-variant-numeric:tabular-nums}
+.rl .pc{width:62px;text-align:right;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.acc{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:12px;color:var(--ink2)}
+.acc b{font-size:15px;color:var(--ink)}
+
+/* drill-down */
+.stack button{border:0;padding:0;cursor:pointer;min-width:3px;height:100%;display:block}
+.stack.sel button:not([aria-pressed="true"]){opacity:.3}
+.rl button.r{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:8px;cursor:pointer}
+.rl button.r:hover{background:var(--soft)}
+.rl button.r[aria-pressed="true"]{background:var(--teal-soft);box-shadow:inset 0 0 0 2px var(--teal)}
+.rl button.r:focus-visible,.stack button:focus-visible,.abar:focus-visible{outline:3px solid #5fb3c0;outline-offset:2px}
+.hint{font-size:12px;color:var(--ink2);margin:10px 0 0}
+.drill{margin-top:16px;border:2px solid var(--teal);border-radius:14px;padding:14px 16px;min-width:0}
+.drill h3{margin:0;font-size:15px;font-weight:600;display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap}
+.drill .x{margin-left:auto}
+.pies{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:16px}
+.pie{border:1px solid var(--line,rgba(128,128,128,.25));border-radius:14px;padding:12px 14px;min-width:0}
+.pie h4{margin:0 0 6px;font-size:14px;font-weight:600;display:flex;gap:8px;align-items:center}
+.donut{display:block;width:100%;max-width:210px;height:auto;margin:0 auto}
+.donut .sl{cursor:pointer;stroke:var(--card);stroke-width:2;transition:opacity .15s,transform .15s;transform-origin:90px 90px}
+.donut .sl:hover{transform:scale(1.04)}
+.donut.sel .sl:not(.on){opacity:.28}
+.donut .sl.on{transform:scale(1.06)}
+.donut .sl:focus-visible{outline:none;stroke:#5fb3c0;stroke-width:4}
+.donut text{fill:var(--ink);text-anchor:middle;pointer-events:none}
+.pleg{display:flex;flex-wrap:wrap;gap:4px 14px;justify-content:center;margin-top:8px;font-size:12px;color:var(--ink2)}
+.pleg span{display:inline-flex;gap:5px;align-items:center}
+.dflex{display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.dflex .dpie{flex:0 0 200px;max-width:100%}
+.dflex .abars{flex:1 1 340px;margin:0}
+.drow{display:grid;grid-template-columns:22px minmax(110px,200px) 1fr 64px 52px;gap:8px;align-items:center;padding:3px 4px;font-size:13px}
+.drow .rk{color:var(--muted);font-size:12px;text-align:right}
+.drow .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drow .tr{height:10px;background:var(--soft);border-radius:4px;overflow:hidden}
+.drow .tr i{display:block;height:100%;border-radius:4px}
+.drow b{text-align:right;font-variant-numeric:tabular-nums}
+.drow .pc{text-align:right;color:var(--muted);font-size:12px}
+.drow.pk{cursor:pointer;border-radius:8px}
+.drow.pk:hover{background:var(--soft)}
+.drow.pk.on{background:var(--teal-soft);box-shadow:inset 0 0 0 2px var(--teal)}
+.drow.pk:focus-visible{outline:3px solid #5fb3c0;outline-offset:2px}
+.clock{display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin:10px 0 4px;border:1px solid var(--line,rgba(128,128,128,.25));border-radius:14px;padding:12px 14px}
+.clock svg{flex:0 0 340px;max-width:100%;height:auto}
+.clock .ins{flex:1 1 280px;min-width:0;font-size:13px}
+.clock .ins h4{margin:0 0 6px;font-size:14px}
+.clock text{fill:var(--ink)}
+.clock .sub{fill:var(--ink2);font-size:10px}
+.clock .wd{cursor:default;stroke:var(--card);stroke-width:.6}
+.clock .wd:hover{opacity:.8}
+.clock .bk{display:grid;grid-template-columns:1fr auto auto;gap:2px 10px;margin:6px 0 10px}
+.clock .bk b,.clock .bk span.n{text-align:right;font-variant-numeric:tabular-nums}
+.clock .lgd{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;color:var(--ink2);font-size:12px}
+.clock .lgd span{display:inline-flex;gap:5px;align-items:center}
+.dcol h4{margin:0 0 6px;font-size:14px;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--teal-soft);color:var(--teal-ink)}
+tr.pick.on td{background:var(--teal-soft)}
+.abars{display:grid;gap:4px;margin:10px 0 4px}
+.abar{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(120px,230px) 1fr 76px 56px;gap:10px;align-items:center;padding:3px 8px;border-radius:8px;cursor:pointer;font-size:13px}
+.abar:hover{background:var(--soft)}
+.abar[aria-pressed="true"]{background:var(--teal-soft);box-shadow:inset 0 0 0 2px var(--teal)}
+.abar .nm{display:flex;gap:7px;align-items:center;min-width:0}
+.abar .nm span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.abar .tr{height:10px;background:var(--soft);border-radius:4px;overflow:hidden}
+.abar .tr i{display:block;height:100%;border-radius:4px}
+.abar b{text-align:right;font-variant-numeric:tabular-nums}
+.abar .pc{text-align:right;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.dtools{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;margin:10px 0 8px}
+.dtools input[type=search]{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:6px 10px;min-width:200px;flex:1 1 200px;max-width:340px}
+.dtools .sp{flex:1}
+.dtools .info{font-size:12.5px;color:var(--ink2)}
+table.t td.l,table.t th.l{text-align:left}
+table.t td.w{white-space:normal;min-width:120px}
+@media (max-width:640px){.abar{grid-template-columns:1fr 70px 50px}.abar .tr{display:none}}
+/* vehicles */
+#vehicles td:nth-child(2){text-align:left}#vehicles th:nth-child(2){text-align:left}
+.minibar{display:inline-block;height:8px;border-radius:3px;vertical-align:middle;margin-right:6px}
+.empty{color:var(--muted);padding:40px 0;text-align:center}
+.status{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.status h3{margin:0 0 6px;font-size:14px;font-weight:600}
+.status dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:13px}
+.status dt{color:var(--ink2)}.status dd{margin:0;font-variant-numeric:tabular-nums}
+.toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:#14202f;color:#fff;border-radius:12px;padding:10px 16px;font-size:13px;opacity:0;transition:all .25s;z-index:60;max-width:92vw;pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.bad{background:#b42318}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.res,.status{grid-template-columns:1fr}}
+@media (max-width:480px){.kpis{grid-template-columns:1fr}.top h1{font-size:18px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="top wrap">
+  <div class="in">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l2-5a2 2 0 0 1 1.9-1.3h10.2A2 2 0 0 1 19 8l2 5"/><rect x="3" y="13" width="18" height="5" rx="1.5"/><circle cx="7.5" cy="15.5" r=".6" fill="#fff"/><circle cx="16.5" cy="15.5" r=".6" fill="#fff"/><path d="M6 18v2M18 18v2"/></svg>
+      </div>
+      <div>
+        <h1>ADAS &amp; DMS Overview Dashboard</h1>
+        <div class="sub">SCA · ภาพรวมการแจ้งเตือนจากอุปกรณ์ GPS ทั้งฝูงรถ</div>
+      </div>
+    </div>
+    <div class="actions">
+      <input type="file" id="fileAdas" accept=".xlsx,.xlsm" hidden>
+      <input type="file" id="fileDms" accept=".xlsx,.xlsm" hidden>
+      <button class="btn adas" id="btnAdas" type="button"><span class="dotk"></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+        อัพไฟล์ ADAS</button>
+      <button class="btn dms" id="btnDms" type="button"><span class="dotk"></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+        อัพไฟล์ DMS</button>
+    </div>
+    <div class="srcline" id="srcLine" aria-live="polite">กำลังโหลดข้อมูล…</div>
+  </div>
+</header>
+
+<div class="wrap" id="upWrap" hidden><div class="up" id="upPanel" style="max-width:1500px;margin-inline:auto"></div></div>
+
+<section class="filters wrap" aria-label="ตัวกรองข้อมูล">
+  <div class="in">
+    <div class="f">
+      <label for="dFrom">ช่วงวันที่</label>
+      <div class="dates">
+        <input type="date" id="dFrom" aria-label="วันที่เริ่มต้น"><span aria-hidden="true">–</span>
+        <input type="date" id="dTo" aria-label="วันที่สิ้นสุด">
+        <button class="chip" id="pAll" type="button">ทั้งหมด</button>
+        <button class="chip" id="p30" type="button">30 วันล่าสุด</button>
+        <button class="chip" id="pLast" type="button">เดือนล่าสุด</button>
+      </div>
+    </div>
+    <div class="f">
+      <label for="selPlate">รถ</label>
+      <select id="selPlate"><option value="">ทุกคัน</option></select>
+    </div>
+    <div class="f">
+      <span class="lb" id="lbGran">มุมมองกราฟ</span>
+      <div class="seg" id="segGran" role="group" aria-labelledby="lbGran">
+        <button type="button" data-v="month" aria-pressed="true">รายเดือน</button>
+        <button type="button" data-v="day" aria-pressed="false">รายวัน</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<main class="wrap" id="main">
+  <div class="empty card" id="loading">กำลังโหลดข้อมูล…</div>
+  <div id="app" hidden>
+    <div class="kpis" id="kpis"></div>
+
+    <nav class="tabs" id="tabs" role="tablist" aria-label="หมวดเนื้อหา"><button type="button" role="tab" id="tab-ov" data-tab="ov" aria-selected="true" tabindex="0">ภาพรวม</button><button type="button" role="tab" id="tab-res" data-tab="res" aria-selected="false" tabindex="-1">ผลการตรวจสอบ</button><button type="button" role="tab" id="tab-drv" data-tab="drv" aria-selected="false" tabindex="-1">ผู้ขับ</button><button type="button" role="tab" id="tab-trd" data-tab="trd" aria-selected="false" tabindex="-1">แนวโน้มผู้ขับ</button><button type="button" role="tab" id="tab-veh" data-tab="veh" aria-selected="false" tabindex="-1">รถ</button><button type="button" role="tab" id="tab-stat" data-tab="stat" aria-selected="false" tabindex="-1">สถานะข้อมูล</button></nav>
+
+    <section class="sec card" data-tab="ov">
+      <h2>ADAS vs DMS — จำนวนการแจ้งเตือนทั้งหมด</h2>
+      <p class="desc" id="descMain"></p>
+      <div class="lg" id="lgMain"></div>
+      <div class="chartwrap" id="chMain"></div>
+      <p class="note" id="noteMain"></p>
+      <details class="tv"><summary>ดูเป็นตัวเลข (ตาราง)</summary><div class="tscroll" id="tvMain"></div></details>
+    </section>
+
+    <section class="sec card" data-tab="ov">
+      <h2>ADAS — แยกตามชนิด Alarm</h2>
+      <p class="desc">คลิกที่ชื่อ Alarm เพื่อซ่อนหรือแสดงเส้น กราฟจะปรับสเกลใหม่ตามเส้นที่เหลือ</p>
+      <div class="lg" id="lgAdas"></div>
+      <div class="chartwrap" id="chAdas"></div>
+      <details class="tv"><summary>ดูเป็นตัวเลข (ตาราง)</summary><div class="tscroll" id="tvAdas"></div></details>
+    </section>
+
+    <section class="sec card" data-tab="ov">
+      <h2>DMS — แยกตามชนิด Alarm</h2>
+      <p class="desc">Distraction และ No driver มีจำนวนมากกว่าชนิดอื่นหลายเท่า ซ่อน 2 เส้นนี้เพื่อดูชนิดที่เหลือชัดขึ้น</p>
+      <div class="lg" id="lgDms"></div>
+      <div class="chartwrap" id="chDms"></div>
+      <details class="tv"><summary>ดูเป็นตัวเลข (ตาราง)</summary><div class="tscroll" id="tvDms"></div></details>
+    </section>
+
+    <section class="sec card" data-tab="res" hidden>
+      <h2>ผลการตรวจสอบ (Result)</h2>
+      <p class="desc">รวมทุกวันในช่วงที่เลือก · True = แจ้งเตือนถูกต้อง, False = แจ้งเตือนผิดพลาด, Not Checked = ยังไม่ได้ตรวจสอบ</p>
+      <div class="res" id="res"></div>
+      <div class="pies" id="pies" aria-label="กราฟ Pie สัดส่วนผลการตรวจสอบ"></div>
+      <p class="hint">คลิก True / False / Not Checked เพื่อดูว่าเป็น Alarm ชนิดไหน รถคันไหน เกิดเมื่อไร ผู้ขับคนใด และสถานที่ใด · คลิกซ้ำเพื่อปิด</p>
+      <div class="drill" id="drill" hidden></div>
+    </section>
+
+    <section class="sec card" data-tab="drv" hidden>
+      <h2>ผู้ขับที่ตรวจพบมากที่สุด</h2>
+      <p class="desc">นับจากรายเหตุการณ์ ADAS และ DMS ในช่วงวันที่ที่เลือก · ซ้าย = ทุกผลการตรวจสอบ, ขวา = เฉพาะ True (ตรวจพบถูกต้อง)</p>
+      <div class="seg" id="drvSeg" role="group" aria-label="เลือกประเภท"><button type="button" data-v="ALL" aria-pressed="true">ADAS + DMS</button><button type="button" data-v="ADAS" aria-pressed="false">ADAS</button><button type="button" data-v="DMS" aria-pressed="false">DMS</button></div>
+      <div class="pies" id="drivers" style="margin-top:14px"></div>
+      <p class="note" id="drvNote"></p>
+      <p class="hint">คลิกชื่อผู้ขับเพื่อดูตารางว่าขับรถทะเบียนไหน วันที่ใด เวลาใดเกิด Alarm</p>
+      <div class="drill" id="dpanel" hidden></div>
+    </section>
+
+    <section class="sec card" data-tab="trd" hidden>
+      <h2>แนวโน้มพฤติกรรมผู้ขับ — ดีขึ้นหรือแย่ลง</h2>
+      <p class="desc">เทียบจำนวนการแจ้งเตือนของผู้ขับแต่ละคนระหว่าง 2 เดือนที่เลือก · แดง ▲ = เพิ่มขึ้น, เขียว ▼ = ลดลง · คลิกการ์ดเพื่อกรอง</p>
+      <div class="dtools">
+        <div class="seg" id="trKind" role="group" aria-label="ประเภท"><button type="button" data-v="ALL" aria-pressed="true">ADAS + DMS</button><button type="button" data-v="ADAS" aria-pressed="false">ADAS</button><button type="button" data-v="DMS" aria-pressed="false">DMS</button></div>
+        <div class="seg" id="trMode" role="group" aria-label="นับ"><button type="button" data-v="all" aria-pressed="true">ทุกผลการตรวจสอบ</button><button type="button" data-v="true" aria-pressed="false">เฉพาะ True</button></div>
+        <label>เดือนฐาน <select id="trA"></select></label>
+        <label>เทียบกับ <select id="trB"></select></label>
+        <label>ขั้นต่ำ <select id="trMin"><option value="3">3 ครั้ง</option><option value="5" selected>5 ครั้ง</option><option value="10">10 ครั้ง</option><option value="20">20 ครั้ง</option></select></label>
+      </div>
+      <div id="trBody"></div>
+    </section>
+
+    <section class="sec card" data-tab="veh" hidden>
+      <h2>รถที่มีการแจ้งเตือนมากที่สุด</h2>
+      <p class="desc">เรียงตามช่วงวันที่ที่เลือก · คลิกแถวเพื่อดูว่าใครขับรถคันนั้น วันไหน เวลาใด</p>
+      <div class="tscroll" id="vehicles"></div>
+      <button class="chip" id="btnMoreV" type="button" style="margin-top:8px" hidden></button>
+      <div class="drill" id="vpanel" hidden></div>
+    </section>
+
+    <section class="sec card" data-tab="stat" hidden>
+      <h2>สถานะข้อมูลที่เก็บไว้</h2>
+      <p class="desc">วันที่ที่ไม่มีข้อมูลจะเว้นเส้นกราฟไว้ ไม่นับเป็นศูนย์</p>
+      <div class="status" id="status"></div>
+    </section>
+  </div>
+</main>
+
+<div class="tip" id="tip" role="status"></div>
+<div class="toast" id="toast" role="alert"></div>
+
+<script>
+/* ====================================================================
+   1) Excel parser: streams the .xlsx (zip) so 200k–500k rows never sit in memory at once.
+   Self-contained: it also runs inside a Web Worker built from its own source.
+   ==================================================================== */
+async function parseFile(file, kind, post){
+  const dec = new TextDecoder('utf-8');
+  const THAI_EN = {
+    'คำเตือนการชนกันของรถด้านหน้า':'Forward Collision Warning','แจ้งเตือนเว้นระยะห่างจากรถคันหน้า':'Headway Monitoring Warning',
+    'เปลี่ยนเลนโดยไม่เปิดไฟเลี้ยว':'Lane Departure Warning','แจ้งเตือนใกล้ชนคนเดินเท้า':'Pedestrian Collision Warning',
+    'แจ้งเตือนการใช้โทรศัพท์มือถือ':'Cell phone use','แจ้งเตือนการมองไปรอบ ๆ':'Distraction','แจ้งเตือนการสูบบุหรี่':'Smoking',
+    'แจ้งเตือนไม่สามารถจับใบหน้าได้':'No driver','แจ้งเตือนมีความง่วงระดับ 1':'Eye closed 1','แจ้งเตือนมีความง่วงระดับ 2':'Eye closed 2',
+    'แจ้งเตือนการหาวนอน':'Yawning'
+  };
+  function decodeEnt(s){
+    return s.indexOf('&')<0 ? s : s.replace(/&(#x?[0-9a-fA-F]+|amp|lt|gt|quot|apos);/g,(m,g)=>{
+      if(g==='amp')return '&'; if(g==='lt')return '<'; if(g==='gt')return '>'; if(g==='quot')return '"'; if(g==='apos')return "'";
+      return String.fromCodePoint(g[1]==='x'||g[1]==='X' ? parseInt(g.slice(2),16) : parseInt(g.slice(1),10));
+    });
+  }
+  function textOf(x){
+    if(!x) return '';
+    x = x.replace(/<rPh\b[\s\S]*?<\/rPh>/g,'');
+    let out=''; const re=/<t\b[^>]*>([\s\S]*?)<\/t>/g; let m;
+    while((m=re.exec(x))) out+=m[1];
+    return decodeEnt(out);
+  }
+  // ---- zip directory
+  const tailLen = Math.min(file.size, 65557+22);
+  const tail = new DataView(await file.slice(file.size-tailLen).arrayBuffer());
+  let eocd=-1;
+  for(let i=tailLen-22;i>=0;i--){ if(tail.getUint32(i,true)===0x06054b50){eocd=i;break;} }
+  if(eocd<0) throw new Error('ไม่ใช่ไฟล์ Excel (.xlsx) ที่ถูกต้อง');
+  const cdCount=tail.getUint16(eocd+10,true), cdSize=tail.getUint32(eocd+12,true), cdOff=tail.getUint32(eocd+16,true);
+  if(cdOff===0xFFFFFFFF) throw new Error('ไฟล์ใหญ่เกินที่รองรับ (zip64)');
+  const cd = new DataView(await file.slice(cdOff,cdOff+cdSize).arrayBuffer());
+  const cdU8 = new Uint8Array(cd.buffer);
+  const entries={}; let p=0;
+  for(let i=0;i<cdCount;i++){
+    if(cd.getUint32(p,true)!==0x02014b50) break;
+    const method=cd.getUint16(p+10,true), csize=cd.getUint32(p+20,true), nl=cd.getUint16(p+28,true), el=cd.getUint16(p+30,true), cl=cd.getUint16(p+32,true), off=cd.getUint32(p+42,true);
+    entries[dec.decode(cdU8.subarray(p+46,p+46+nl))]={method,csize,off};
+    p+=46+nl+el+cl;
+  }
+  async function openEntry(name,onBytes){
+    const e=entries[name]; if(!e) return null;
+    const lh=new DataView(await file.slice(e.off,e.off+30).arrayBuffer());
+    const start=e.off+30+lh.getUint16(26,true)+lh.getUint16(28,true);
+    let s=file.slice(start,start+e.csize).stream();
+    if(onBytes) s=s.pipeThrough(new TransformStream({transform(c,ctl){onBytes(c.length);ctl.enqueue(c);}}));
+    if(e.method===8) s=s.pipeThrough(new DecompressionStream('deflate-raw'));
+    else if(e.method!==0) throw new Error('รูปแบบการบีบอัดของไฟล์ไม่รองรับ');
+    return {reader:s.getReader(), csize:e.csize};
+  }
+  async function readText(name){
+    const o=await openEntry(name); if(!o) return null;
+    const d=new TextDecoder(); let out='';
+    for(;;){ const {done,value}=await o.reader.read(); if(done)break; out+=d.decode(value,{stream:true}); }
+    return out+d.decode();
+  }
+  // ---- shared strings
+  const sst=[];
+  { const o=await openEntry('xl/sharedStrings.xml');
+    if(o){ const d=new TextDecoder(); let buf=''; const siRe=/<si\b[^>]*?(?:\/>|>([\s\S]*?)<\/si>)/g;
+      for(;;){ const {done,value}=await o.reader.read();
+        if(value) buf+=d.decode(value,{stream:true}); if(done) buf+=d.decode();
+        let last=0,m; siRe.lastIndex=0;
+        while((m=siRe.exec(buf))){ sst.push(textOf(m[1])); last=siRe.lastIndex; }
+        buf=buf.slice(last); if(done)break; } } }
+  // ---- sheets
+  const wb=await readText('xl/workbook.xml'), rels=await readText('xl/_rels/workbook.xml.rels');
+  if(!wb||!rels) throw new Error('อ่านโครงสร้างไฟล์ Excel ไม่ได้');
+  const relMap={};
+  for(const m of rels.matchAll(/<Relationship\b[^>]*>/g)){
+    const id=/\bId="([^"]+)"/.exec(m[0]), tg=/\bTarget="([^"]+)"/.exec(m[0]);
+    if(id&&tg){ let t=tg[1]; t=t.replace(/^\//,''); if(!t.startsWith('xl/')) t='xl/'+t; relMap[id[1]]=t; }
+  }
+  const sheets=[];
+  for(const m of wb.matchAll(/<sheet\b[^>]*>/g)){
+    const nm=/\bname="([^"]*)"/.exec(m[0]), rid=/\br:id="([^"]+)"/.exec(m[0]);
+    if(nm&&rid&&relMap[rid[1]]) sheets.push({name:decodeEnt(nm[1]),path:relMap[rid[1]]});
+  }
+  // ---- row scanner
+  async function scanSheet(path,onRow,onBytes){
+    const o=await openEntry(path,onBytes); if(!o) return;
+    const d=new TextDecoder(); let buf='';
+    const rowRe=/<row\b[^>]*?(?:\/>|>([\s\S]*?)<\/row>)/g;
+    for(;;){
+      const {done,value}=await o.reader.read();
+      if(value) buf+=d.decode(value,{stream:true}); if(done) buf+=d.decode();
+      let last=0,m; rowRe.lastIndex=0;
+      while((m=rowRe.exec(buf))){
+        last=rowRe.lastIndex;
+        if(m[1]!==undefined && onRow(m[1])===false){ await o.reader.cancel(); return; }
+      }
+      buf=buf.slice(last); if(done)break;
+    }
+  }
+  const HEAD={ 'Date':'date','Alarm Eng':'alarmEng','รายการแจ้งเตือน':'alarmTh','Result':'result','ทะเบียนรถ':'plate','ชื่อรถ':'name','หมวดแจ้งเตือน':'cat',
+    'Time':'time','ชื่อผู้ใช้รถ':'driver','ตำบล':'tambon','อำเภอ':'amphoe','จังหวัด':'province','Description':'desc' };
+  const strs=[''], sidx=new Map([['',0]]);
+  const SI=t=>{ if(!t) return 0; let i=sidx.get(t); if(i===undefined){ i=strs.length; strs.push(t); sidx.set(t,i); } return i; };
+  const clean=v=>{ if(v===undefined||v===null) return ''; const t=String(v).replace(/\s+/g,' ').trim(); return /^(null|nan|none)$/i.test(t)?'':t; };
+  const secOf=v=>{ if(typeof v==='number') return Math.round((v-Math.floor(v))*86400)%86400;
+    if(typeof v==='string'){ const m=/(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(v); if(m) return (+m[1])*3600+(+m[2])*60+(+(m[3]||0)); } return 0; };
+  const ev={};
+  const cellRe=/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+  function cellsOf(rowXml,wanted){            // wanted: letter -> key (or null = all)
+    const out={}; let m; cellRe.lastIndex=0;
+    while((m=cellRe.exec(rowXml))){
+      const a=m[1], inner=m[2]; if(!inner) continue;
+      const ri=a.indexOf('r="'); if(ri<0) continue;
+      let j=ri+3; while(j<a.length){ const c=a.charCodeAt(j); if(c<65||c>90)break; j++; }
+      const col=a.slice(ri+3,j);
+      let key; if(wanted){ key=wanted[col]; if(!key) continue; } else key=col;
+      const ti=a.indexOf(' t="'); const t=ti<0?'n':a.slice(ti+4,a.indexOf('"',ti+4));
+      let v=null; const vi=inner.indexOf('<v>');
+      if(vi>=0){ v=inner.slice(vi+3,inner.indexOf('</v>',vi)); }
+      else if(t==='inlineStr'){ out[key]=textOf(inner); continue; }
+      else { const mm=/<v\b[^>]*>([\s\S]*?)<\/v>/.exec(inner); if(mm) v=mm[1]; }
+      if(v===null) continue;
+      if(t==='s') out[key]=sst[+v]??'';
+      else if(t==='b') out[key]=(v==='1');
+      else if(t==='str') out[key]=decodeEnt(v);
+      else if(t==='e') continue;
+      else out[key]=+v;
+    }
+    return out;
+  }
+  const serialCache=new Map();
+  function dateKey(v){
+    if(typeof v==='number'){
+      const n=Math.floor(v); let s=serialCache.get(n);
+      if(!s){ const dt=new Date(Date.UTC(1899,11,30)+n*864e5); s=dt.toISOString().slice(0,10); serialCache.set(n,s); }
+      return s;
+    }
+    if(typeof v!=='string') return null;
+    let m=/^(\d{4})-(\d{2})-(\d{2})/.exec(v);
+    let y,mo,d;
+    if(m){y=+m[1];mo=+m[2];d=+m[3];}
+    else if((m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(v))){d=+m[1];mo=+m[2];y=+m[3];}
+    else return null;
+    if(y>2400) y-=543;
+    if(y<2000||y>2100||mo<1||mo>12||d<1||d>31) return null;
+    return y+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  }
+  function resCode(v){
+    if(v===true||v===1) return 1;
+    if(v===false||v===0) return 2;
+    if(typeof v==='string'){ const s=v.trim().toLowerCase(); if(s==='true') return 1; if(s==='false') return 2; if(s.replace(/\s+/g,' ')==='no video') return 3; }
+    return 0;
+  }
+  // ---- main pass
+  const days={}, names={}, cats=new Set();
+  let total=0, skipped=0, chosen=null, lastPost=0, consumed=0;
+  for(const sh of sheets){
+    let wanted=null, headRows=0, ok=false, c=null, sheetCsize=entries[sh.path]?entries[sh.path].csize:1;
+    await scanSheet(sh.path,rowXml=>{
+      if(!ok){
+        if(++headRows>10) return false;
+        const cells=cellsOf(rowXml,null); const map={}; let hit=0;
+        for(const L in cells){ const h=typeof cells[L]==='string'?cells[L].trim():''; if(HEAD[h]){ map[L]=HEAD[h]; hit++; } }
+        const keys=Object.values(map);
+        if(keys.includes('date') && (keys.includes('alarmEng')||keys.includes('alarmTh'))){ wanted=map; ok=true; chosen=sh.name; }
+        return true;
+      }
+      const r=cellsOf(rowXml,wanted);
+      if(r.date===undefined && r.alarmEng===undefined && r.alarmTh===undefined) return true;   // blank row
+      total++;
+      const ds=dateKey(r.date);
+      if(!ds){ skipped++; return true; }
+      if(r.cat!==undefined) cats.add(String(r.cat).trim());
+      let al=(typeof r.alarmEng==='string'?r.alarmEng.trim():'');
+      if(!al){ const th=typeof r.alarmTh==='string'?r.alarmTh.trim():''; al=THAI_EN[th]||th||'Unknown'; }
+      al=al.replace(/\|/g,'/');
+      let plate=r.plate===undefined?'-':String(r.plate).trim()||'-';
+      plate=plate.replace(/\|/g,'/');
+      if(r.name!==undefined){ const nm=String(r.name).trim(); if(nm) names[plate]=nm; }
+      const day=days[ds]||(days[ds]={});
+      const key=plate+'|'+al;
+      const arr=day[key]||(day[key]=[0,0,0,0]);
+      const rc=resCode(r.result); arr[0]++; if(rc) arr[rc]++;
+      const loc=[clean(r.tambon),clean(r.amphoe),clean(r.province)].join('|');
+      let desc=clean(r.desc); if(/^not checked$/i.test(desc)) desc='';
+      (ev[ds]||(ev[ds]=[])).push(secOf(r.time),SI(plate),SI(al),SI(clean(r.driver)),loc==='||'?0:SI(loc),rc,SI(desc));
+      return true;
+    }, n=>{
+      consumed+=n; const now=Date.now();
+      if(post && now-lastPost>80){ lastPost=now; post({type:'progress',frac:Math.min(1,consumed/Math.max(1,sheetCsize)),rows:total}); }
+    });
+    if(ok) break;
+  }
+  if(!chosen) throw new Error('ไม่พบชีตที่มีคอลัมน์ Date และ Alarm Eng / รายการแจ้งเตือน');
+  return {days,names,rows:total,skipped,sheet:chosen,cats:[...cats],strs,ev};
+}
+
+/* ====================================================================
+   2) Dashboard
+   ==================================================================== */
+const $=id=>document.getElementById(id);
+const MONTHS=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const KIND_COLOR={ADAS:'var(--s1)',DMS:'var(--s2)'};
+const KNOWN={
+  'Headway Monitoring Warning':[1,'เว้นระยะห่างจากรถคันหน้า'],'Lane Departure Warning':[2,'เปลี่ยนเลนโดยไม่เปิดไฟเลี้ยว'],
+  'Pedestrian Collision Warning':[3,'ใกล้ชนคนเดินเท้า'],'Forward Collision Warning':[4,'การชนกันของรถด้านหน้า'],
+  'Distraction':[1,'การมองไปรอบ ๆ'],'No driver':[2,'ไม่สามารถจับใบหน้าได้'],'Eye closed 1':[3,'ความง่วงระดับ 1'],
+  'Yawning':[4,'การหาวนอน'],'Eye closed 2':[5,'ความง่วงระดับ 2'],'Smoking':[6,'การสูบบุหรี่'],'Cell phone use':[7,'การใช้โทรศัพท์มือถือ']
+};
+const S={recs:{ADAS:[],DMS:[]},days:{ADAS:new Set(),DMS:new Set()},names:{},info:null,logs:[],
+  from:'',to:'',plate:'',gran:'month',hidden:{main:new Set(),ADAS:new Set(),DMS:new Set()},
+  loaded:false,busy:false,canWrite:null,showAllV:false,vsort:'tot',slots:{ADAS:{},DMS:{}},gmin:'',gmax:'',ec:{},evP:{},drill:null};
+let db=null, userCap=null;
+
+const fmt=n=>n==null?'–':Math.round(n).toLocaleString('en-US');
+const pct=(a,b)=>b?((a/b*100).toFixed(a/b<0.1?2:1)+'%'):'–';
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtDate=d=>d?(+d.slice(8))+' '+MONTHS[+d.slice(5,7)-1]+' '+d.slice(0,4):'–';
+const fmtMonth=m=>MONTHS[+m.slice(5,7)-1]+' '+m.slice(0,4);
+const dim=m=>new Date(Date.UTC(+m.slice(0,4),+m.slice(5,7),0)).getUTCDate();
+function toast(msg,bad){const t=$('toast');t.textContent=msg;t.className='toast on'+(bad?' bad':'');clearTimeout(toast.h);toast.h=setTimeout(()=>t.className='toast',bad?6000:3200)}
+function fmtTs(ts){const d=new Date(ts);const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes())}
+
+/* ---------- color slot for an alarm (stable per entity) ---------- */
+function colorFor(kind,alarm){
+  const k=KNOWN[alarm]; if(k) return 'var(--s'+k[0]+')';
+  const m=S.slots[kind]; if(!m[alarm]){ const used=new Set(Object.values(m)); let n=0; for(const x of [8,7,6,5]) if(!used.has(x)){n=x;break;} m[alarm]=n; }
+  return m[alarm]?'var(--s'+m[alarm]+')':'var(--sx)';
+}
+
+/* ---------- load from db ---------- */
+async function loadAll(){
+  const years=(S.info&&S.info.years)||[];
+  const next={ADAS:[],DMS:[]}, ds={ADAS:new Set(),DMS:new Set()}, ec={};
+  const snaps=await Promise.all(years.map(y=>db.collection('agg'+y).limit(1000).get()));
+  for(const snap of snaps) for(const doc of snap.docs){
+    const x=doc.data(); if(!x||!next[x.kind]) continue;
+    ds[x.kind].add(x.d); ec[x.kind+'-'+x.d]=x.ec||0;
+    for(const key in x.rows){
+      const i=key.indexOf('|'); const a=x.rows[key];
+      next[x.kind].push({d:x.d,plate:key.slice(0,i),alarm:key.slice(i+1),n:a[0],t:a[1],f:a[2],v:a[3]});
+    }
+  }
+  S.recs=next; S.days=ds; S.ec=ec; S.evP={};
+  try{ const vs=await db.doc('meta/vehicles').get(); S.names=(vs.exists&&vs.data().m)||{}; }catch(e){}
+  try{ const lg=await db.collection('uploads').orderBy('ts','desc').limit(8).get(); S.logs=lg.docs.map(d=>d.data()); }catch(e){ S.logs=[]; }
+  const all=[...ds.ADAS,...ds.DMS].sort();
+  const oldMin=S.gmin, oldMax=S.gmax;
+  S.gmin=all[0]||''; S.gmax=all[all.length-1]||'';
+  if(!S.from||S.from<S.gmin||S.from===oldMin) S.from=S.gmin;
+  if(!S.to||S.to>S.gmax||S.to===oldMax) S.to=S.gmax;
+  S.loaded=true;
+  fillPlates(); render();
+}
+function fillPlates(){
+  const set=new Set(); for(const k of ['ADAS','DMS']) for(const r of S.recs[k]) set.add(r.plate);
+  const sel=$('selPlate'), cur=S.plate;
+  const list=[...set].sort((a,b)=>String(S.names[a]||a).localeCompare(String(S.names[b]||b),'en',{numeric:true}));
+  sel.innerHTML='<option value="">ทุกคัน ('+list.length+')</option>'+list.map(p=>'<option value="'+esc(p)+'">'+esc(p+(S.names[p]?' · '+S.names[p]:''))+'</option>').join('');
+  sel.value=set.has(cur)?cur:''; S.plate=sel.value;
+}
+
+/* ---------- aggregation ---------- */
+function periodsFor(){
+  const a=S.from||S.gmin,b=S.to||S.gmax; if(!a||!b||a>b) return [];
+  const out=[];
+  if(S.gran==='month'){
+    let y=+a.slice(0,4),m=+a.slice(5,7); const ey=+b.slice(0,4),em=+b.slice(5,7);
+    while(y<ey||(y===ey&&m<=em)){ out.push(y+'-'+String(m).padStart(2,'0')); if(++m>12){m=1;y++;} }
+  } else {
+    let t=Date.UTC(+a.slice(0,4),+a.slice(5,7)-1,+a.slice(8)); const e=Date.UTC(+b.slice(0,4),+b.slice(5,7)-1,+b.slice(8));
+    for(;t<=e;t+=864e5) out.push(new Date(t).toISOString().slice(0,10));
+  }
+  return out;
+}
+const pkey=d=>S.gran==='month'?d.slice(0,7):d;
+function aggregate(kind,periods){
+  const idx=new Map(periods.map((p,i)=>[p,i])); const n=periods.length;
+  const tot=new Array(n).fill(0), al={}, res=[0,0,0,0];
+  for(const r of S.recs[kind]){
+    if(r.d<S.from||r.d>S.to) continue; if(S.plate&&r.plate!==S.plate) continue;
+    const i=idx.get(pkey(r.d)); if(i===undefined) continue;
+    tot[i]+=r.n; (al[r.alarm]||(al[r.alarm]=new Array(n).fill(0)))[i]+=r.n;
+    res[0]+=r.n; res[1]+=r.t; res[2]+=r.f; res[3]+=r.v;
+  }
+  const have=new Array(n).fill(0);
+  for(const d of S.days[kind]){ if(d<S.from||d>S.to) continue; const i=idx.get(pkey(d)); if(i!==undefined) have[i]++; }
+  const exp=periods.map(p=>{
+    if(S.gran==='day') return 1;
+    const first=(p+'-01'>S.from?p+'-01':S.from), last=(p+'-'+String(dim(p)).padStart(2,'0'));
+    const lastC=last<S.to?last:S.to; return Math.round((Date.parse(lastC)-Date.parse(first))/864e5)+1;
+  });
+  const mask=v=>v.map((x,i)=>have[i]?x:null);
+  const alarms=Object.keys(al).sort((a,b)=>al[b].reduce((s,x)=>s+x,0)-al[a].reduce((s,x)=>s+x,0));
+  return {total:mask(tot),al:Object.fromEntries(alarms.map(a=>[a,mask(al[a])])),alarms,res,have,exp,sum:tot.reduce((s,x)=>s+x,0)};
+}
+const plabel=p=>S.gran==='month'?fmtMonth(p):fmtDate(p);
+const plabelShort=p=>S.gran==='month'?fmtMonth(p):(+p.slice(8))+' '+MONTHS[+p.slice(5,7)-1];
+
+/* ---------- line chart (SVG) ---------- */
+function niceMax(v){ if(v<=0) return 4; const e=Math.pow(10,Math.floor(Math.log10(v))); const f=v/e; const n=f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10; return n*e; }
+function lineChart(el,o){
+  const W=Math.max(300,el.clientWidth||600), H=Math.round(Math.min(340,Math.max(230,W*0.34)));
+  const mr=o.direct?(W<520?58:84):16, ml=W<520?44:54, mt=14, mb=30;
+  const iw=W-ml-mr, ih=H-mt-mb, n=o.x.length;
+  const vis=o.series.filter(s=>!o.hidden.has(s.id));
+  let mx=0; for(const s of vis) for(const v of s.values) if(v!=null&&v>mx) mx=v;
+  const top=niceMax(mx*1.04), tickN=4;
+  const X=i=>ml+(n===1?iw/2:i*iw/(n-1)), Y=v=>mt+ih-(v/top)*ih;
+  let g='';
+  for(let k=0;k<=tickN;k++){ const v=top*k/tickN, y=Y(v);
+    g+='<line x1="'+ml+'" x2="'+(W-mr)+'" y1="'+y+'" y2="'+y+'" stroke="'+(k===0?'var(--axis)':'var(--grid)')+'" stroke-width="1"/>';
+    g+='<text x="'+(ml-8)+'" y="'+(y+4)+'" text-anchor="end" font-size="11" fill="var(--muted)">'+fmt(v)+'</text>'; }
+  const minGap=o.gran==='month'?70:56; const step=Math.max(1,Math.ceil(minGap/(n===1?iw:iw/(n-1))));
+  for(let i=0;i<n;i+=step){ const anchor=(i===0&&n>1)?'start':'middle';
+    g+='<text x="'+X(i)+'" y="'+(H-8)+'" text-anchor="'+(i===0&&n>1?'start':'middle')+'" font-size="11" fill="var(--muted)">'+esc(o.xShort[i])+'</text>'; }
+  const ends=[];
+  for(const s of vis){
+    let d='',seg=false, last=-1;
+    s.values.forEach((v,i)=>{ if(v==null){seg=false;return;} d+=(seg?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1); seg=true; last=i; });
+    g+='<path d="'+d+'" fill="none" stroke="'+s.color+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    if(n<=45) s.values.forEach((v,i)=>{ if(v==null) return; const part=s.partial&&s.partial[i];
+      g+='<circle cx="'+X(i)+'" cy="'+Y(v)+'" r="4" fill="'+(part?'var(--card)':s.color)+'" stroke="'+(part?s.color:'var(--card)')+'" stroke-width="'+(part?2:2)+'"/>'; });
+    else if(last>=0) g+='<circle cx="'+X(last)+'" cy="'+Y(s.values[last])+'" r="3.5" fill="'+s.color+'" stroke="var(--card)" stroke-width="2"/>';
+    if(o.direct&&last>=0) ends.push({y:Y(s.values[last]),x:X(last),label:s.short||s.label});
+  }
+  ends.sort((a,b)=>a.y-b.y); for(let i=1;i<ends.length;i++) if(ends[i].y-ends[i-1].y<14) ends[i].y=ends[i-1].y+14;
+  for(const e of ends) g+='<text x="'+(Math.min(e.x+8,W-mr+8))+'" y="'+(e.y+4)+'" font-size="12" font-weight="500" fill="var(--ink2)">'+esc(e.label)+'</text>';
+  g+='<line id="xh" x1="0" x2="0" y1="'+mt+'" y2="'+(mt+ih)+'" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3" visibility="hidden"/>';
+  g+='<g id="hd"></g>';
+  g+='<rect id="hit" x="'+ml+'" y="'+mt+'" width="'+iw+'" height="'+ih+'" fill="transparent"/>';
+  if(!vis.length) g+='<text x="'+(W/2)+'" y="'+(H/2)+'" text-anchor="middle" font-size="13" fill="var(--muted)">ไม่ได้เลือกเส้นใดแสดง</text>';
+  el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" role="img" aria-label="'+esc(o.aria)+'">'+g+'</svg>';
+  const svg=el.firstChild, hit=svg.querySelector('#hit'), xh=svg.querySelector('#xh'), hd=svg.querySelector('#hd'), tip=$('tip');
+  function move(ev){
+    const r=svg.getBoundingClientRect(); const px=(ev.clientX-r.left)*(W/r.width);
+    let i=n===1?0:Math.round((px-ml)/(iw/(n-1))); i=Math.max(0,Math.min(n-1,i));
+    xh.setAttribute('x1',X(i)); xh.setAttribute('x2',X(i)); xh.setAttribute('visibility','visible');
+    hd.innerHTML=vis.map(s=>s.values[i]==null?'':'<circle cx="'+X(i)+'" cy="'+Y(s.values[i])+'" r="5.5" fill="'+s.color+'" stroke="var(--card)" stroke-width="2"/>').join('');
+    let h='<div class="tt">'+esc(o.xLong[i])+(o.sub&&o.sub(i)?' · '+esc(o.sub(i)):'')+'</div>';
+    const rows=vis.map(s=>({s,v:s.values[i]})).sort((a,b)=>(b.v??-1)-(a.v??-1));
+    for(const {s,v} of rows) h+='<div class="tr"><i class="sw" style="background:'+s.color+'"></i><span class="tl">'+esc(s.label)+'</span><span class="tv">'+(v==null?'ไม่มีข้อมูล':fmt(v))+'</span></div>';
+    tip.innerHTML=h; tip.classList.add('on');
+    const tw=tip.offsetWidth, th=tip.offsetHeight; let x=ev.clientX+16, y=ev.clientY+12;
+    if(x+tw>innerWidth-8) x=ev.clientX-tw-16; if(y+th>innerHeight-8) y=innerHeight-th-8;
+    tip.style.left=Math.max(8,x)+'px'; tip.style.top=Math.max(8,y)+'px';
+  }
+  hit.addEventListener('pointermove',move); hit.addEventListener('pointerdown',move);
+  hit.addEventListener('pointerleave',()=>{tip.classList.remove('on');xh.setAttribute('visibility','hidden');hd.innerHTML='';});
+}
+function legend(el,series,hidden,onToggle){
+  el.innerHTML=series.map(s=>'<button type="button" data-id="'+esc(s.id)+'" aria-pressed="'+(!hidden.has(s.id))+'" title="'+esc(s.th||'')+'"><i class="sw" style="background:'+s.color+'"></i>'+esc(s.label)+' <span class="n">'+fmt(s.sum)+'</span></button>').join('');
+  el.onclick=e=>{ const b=e.target.closest('button'); if(!b) return; const id=b.dataset.id; hidden.has(id)?hidden.delete(id):hidden.add(id); onToggle(); };
+}
+function tableView(el,periods,series,sub){
+  let h='<table class="t"><thead><tr><th>'+(S.gran==='month'?'เดือน':'วันที่')+'</th>'+series.map(s=>'<th>'+esc(s.label)+'</th>').join('')+(sub?'<th>ข้อมูล</th>':'')+'</tr></thead><tbody>';
+  periods.forEach((p,i)=>{ h+='<tr><td>'+esc(plabel(p))+'</td>'+series.map(s=>'<td>'+fmt(s.values[i])+'</td>').join('')+(sub?'<td>'+esc(sub(i))+'</td>':'')+'</tr>'; });
+  el.innerHTML=h+'</tbody></table>';
+}
+
+/* ---------- render ---------- */
+let charts=[];
+function render(){
+  const has=S.days.ADAS.size+S.days.DMS.size>0;
+  $('srcLine').innerHTML=['ADAS','DMS'].map(k=>{ const a=[...S.days[k]].sort(); return '<span><b>'+k+':</b> '+(a.length?fmtDate(a[0])+' – '+fmtDate(a[a.length-1])+' ('+a.length+' วัน)':'ยังไม่มีข้อมูล')+'</span>'; }).join('')
+    +(S.info&&S.info.ts?'<span>อัพเดตล่าสุด '+fmtTs(S.info.ts)+'</span>':'');
+  $('dFrom').value=S.from; $('dTo').value=S.to; $('dFrom').min=$('dTo').min=S.gmin; $('dFrom').max=$('dTo').max=S.gmax;
+  if(!has){ $('app').hidden=true; $('loading').hidden=false; $('loading').textContent='ยังไม่มีข้อมูล · กด “อัพไฟล์ ADAS” หรือ “อัพไฟล์ DMS” ที่มุมขวาบนเพื่อเริ่มต้น'; return; }
+  $('loading').hidden=true; $('app').hidden=false;
+  drawAll();
+}
+function drawAll(){
+  const periods=periodsFor(); const A=aggregate('ADAS',periods), D=aggregate('DMS',periods);
+  const xLong=periods.map(plabel), xShort=periods.map(plabelShort);
+  const sub=(ag)=>i=>S.gran==='month'?('ข้อมูล '+ag.have[i]+'/'+ag.exp[i]+' วัน'):'';
+  const partialOf=ag=>S.gran==='month'?ag.have.map((h,i)=>h>0&&h<ag.exp[i]):null;
+  // KPIs
+  const plates=k=>new Set(S.recs[k].filter(r=>r.d>=S.from&&r.d<=S.to&&(!S.plate||r.plate===S.plate)).map(r=>r.plate));
+  const pa=plates('ADAS'), pd=plates('DMS'), pu=new Set([...pa,...pd]);
+  const dayU=new Set([...S.days.ADAS,...S.days.DMS].filter(d=>d>=S.from&&d<=S.to));
+  const da=[...S.days.ADAS].filter(d=>d>=S.from&&d<=S.to).length, dd=[...S.days.DMS].filter(d=>d>=S.from&&d<=S.to).length;
+  $('kpis').innerHTML=
+    '<div class="kpi"><div class="lbl"><i class="sw" style="background:var(--s1)"></i>ADAS ทั้งหมด</div><div class="val">'+fmt(A.sum)+'</div><div class="sm">เฉลี่ย '+fmt(da?A.sum/da:0)+' ครั้ง/วัน</div></div>'+
+    '<div class="kpi"><div class="lbl"><i class="sw" style="background:var(--s2)"></i>DMS ทั้งหมด</div><div class="val">'+fmt(D.sum)+'</div><div class="sm">เฉลี่ย '+fmt(dd?D.sum/dd:0)+' ครั้ง/วัน</div></div>'+
+    '<div class="kpi"><div class="lbl">รถที่มีการแจ้งเตือน</div><div class="val">'+pu.size+'</div><div class="sm">ADAS '+pa.size+' คัน · DMS '+pd.size+' คัน</div></div>'+
+    '<div class="kpi"><div class="lbl">วันที่มีข้อมูล</div><div class="val">'+dayU.size+'</div><div class="sm">'+(S.from?fmtDate(S.from)+' – '+fmtDate(S.to):'')+'</div></div>';
+  $('descMain').textContent=(S.gran==='month'?'รายเดือน':'รายวัน')+(S.plate?' · เฉพาะรถ '+S.plate:' · ทุกคัน')+' · ใช้แกนเดียวกัน เปรียบเทียบตรงกันได้';
+  // main
+  const mainSeries=[
+    {id:'ADAS',label:'ADAS',short:'ADAS',color:KIND_COLOR.ADAS,values:A.total,partial:partialOf(A),sum:A.sum},
+    {id:'DMS',label:'DMS',short:'DMS',color:KIND_COLOR.DMS,values:D.total,partial:partialOf(D),sum:D.sum}];
+  const mainSub=i=>S.gran==='month'?('ADAS '+A.have[i]+'/'+A.exp[i]+' วัน · DMS '+D.have[i]+'/'+D.exp[i]+' วัน'):'';
+  const partialAny=S.gran==='month'&&periods.some((p,i)=>(A.have[i]>0&&A.have[i]<A.exp[i])||(D.have[i]>0&&D.have[i]<D.exp[i]));
+  $('noteMain').textContent=partialAny?'จุดวงกลมโปร่งคือเดือนที่ยังมีข้อมูลไม่ครบทุกวัน ยอดอาจต่ำกว่าความเป็นจริง (ดูจำนวนวันใน tooltip)':'';
+  const ch=[];
+  const mk=(elId,lgId,tvId,key,series,direct,aria,subFn)=>{
+    const hidden=S.hidden[key];
+    const o={x:periods,xShort,xLong,series,hidden,direct,gran:S.gran,aria,sub:subFn};
+    const draw=()=>lineChart($(elId),o);
+    const relg=()=>legend($(lgId),series,hidden,()=>{draw();relg();}); relg();
+    draw(); tableView($(tvId),periods,series,subFn?subFn:null);
+    ch.push(draw);
+  };
+  mk('chMain','lgMain','tvMain','main',mainSeries,true,'กราฟเส้นจำนวน ADAS และ DMS',mainSub);
+  const mkAl=(ag,kind)=>ag.alarms.map(a=>({id:a,label:a,th:(KNOWN[a]||[])[1]||'',color:colorFor(kind,a),values:ag.al[a],partial:partialOf(ag),sum:ag.al[a].reduce((s,x)=>s+(x||0),0)}));
+  mk('chAdas','lgAdas','tvAdas','ADAS',mkAl(A,'ADAS'),false,'กราฟเส้น ADAS แยกชนิด Alarm',sub(A));
+  mk('chDms','lgDms','tvDms','DMS',mkAl(D,'DMS'),false,'กราฟเส้น DMS แยกชนิด Alarm',sub(D));
+  charts=ch;
+  drawResultCards(A,D);
+  renderDrill(); drawVehicles(); drawStatus(); if(S.dpick) S.dpick.rows=null; drawDrivers(); TR.dirty=true; if(curTab()==='trd') drawTrend(); renderVPanel(); renderDPanel(); renderDPanel();
+}
+function drawResultCards(A,D){
+  const resCard=(kind,ag)=>{
+    const [tot,t,f,v]=ag.res, nc=Math.max(0,tot-t-f-v);
+    const parts=[['True',t,'var(--r-true)',1],['False',f,'var(--r-false)',2],['Not Checked',nc,'var(--r-nc)',0]]; if(v) parts.push(['No Video',v,'var(--r-nv)',3]);
+    const D=S.drill, mine=D&&D.kind===kind, pr=p=>mine&&D.res===p[3];
+    return '<div class="rb"><h3><i class="sw" style="background:'+KIND_COLOR[kind]+'"></i>'+kind+' <span style="font-weight:300;color:var(--ink2)">'+fmt(tot)+' ครั้ง</span></h3>'+
+      '<div class="stack'+(mine?' sel':'')+'" role="group" aria-label="สัดส่วนผลการตรวจสอบ '+kind+' คลิกเพื่อดูรายละเอียด">'+parts.filter(p=>p[1]>0).map(p=>'<button type="button" data-k="'+kind+'" data-r="'+p[3]+'" aria-pressed="'+pr(p)+'" title="'+p[0]+' '+fmt(p[1])+' · คลิกเพื่อดูรายละเอียด" style="background:'+p[2]+';flex:'+p[1]+' 1 0"></button>').join('')+'</div>'+
+      '<div class="rl">'+parts.map(p=>'<button type="button" class="r" data-k="'+kind+'" data-r="'+p[3]+'" aria-pressed="'+pr(p)+'"'+(p[1]?'':' disabled')+'><i class="sw" style="background:'+p[2]+'"></i><span class="nm">'+p[0]+'</span><b>'+fmt(p[1])+'</b><span class="pc">'+pct(p[1],tot)+'</span></button>').join('')+'</div>'+
+      '<div class="acc">ตรวจสอบแล้ว <b>'+pct(t+f+v,tot)+'</b> · ถูกต้องในกลุ่มที่ตรวจ (True ÷ True+False) <b>'+pct(t,t+f)+'</b></div></div>';
+  };
+  $('res').innerHTML=resCard('ADAS',A)+resCard('DMS',D);
+  const pieCard=(kind,ag)=>{
+    const [tot,t,f,v]=ag.res, nc=Math.max(0,tot-t-f-v), Dr=S.drill, mine=Dr&&Dr.kind===kind;
+    const items=[['True',t,'var(--r-true)',1],['False',f,'var(--r-false)',2],['Not Checked',nc,'var(--r-nc)',0],['No Video',v,'var(--r-nv)',3]].map(p=>({label:p[0],v:p[1],color:p[2],attrs:'data-k="'+kind+'" data-r="'+p[3]+'"',on:mine&&Dr.res===p[3]}));
+    return '<div class="pie"><h4><i class="sw" style="background:'+KIND_COLOR[kind]+'"></i>'+kind+' · สัดส่วนผลการตรวจสอบ</h4>'+donut(items,mine,fmt(tot),'ครั้ง','สัดส่วนผลการตรวจสอบ '+kind)+
+      '<div class="pleg">'+items.filter(i=>i.v>0).map(i=>'<span><i class="sw" style="background:'+i.color+'"></i>'+i.label+' '+pct(i.v,tot)+'</span>').join('')+'</div></div>';
+  };
+  $('pies').innerHTML=pieCard('ADAS',A)+pieCard('DMS',D);
+}
+function donut(items,sel,big,small,aria){
+  const live=items.filter(i=>i.v>0), tot=live.reduce((s,i)=>s+i.v,0), cx=90,cy=90,R=80,r=50;
+  if(!tot) return '<svg class="donut" viewBox="0 0 180 180" role="img" aria-label="'+esc(aria)+'"><circle cx="90" cy="90" r="65" fill="none" stroke="var(--soft)" stroke-width="30"/><text x="90" y="95" font-size="13">ไม่มีข้อมูล</text></svg>';
+  let a0=-Math.PI/2, out='';
+  const pt=(rad,a)=>[cx+rad*Math.cos(a),cy+rad*Math.sin(a)].map(x=>x.toFixed(2));
+  for(const i of live){
+    const ang=Math.min(i.v/tot*2*Math.PI,2*Math.PI-0.0001), a1=a0+ang, lg=ang>Math.PI?1:0;
+    const [x0,y0]=pt(R,a0),[x1,y1]=pt(R,a1),[x2,y2]=pt(r,a1),[x3,y3]=pt(r,a0);
+    const d='M'+x0+' '+y0+'A'+R+' '+R+' 0 '+lg+' 1 '+x1+' '+y1+'L'+x2+' '+y2+'A'+r+' '+r+' 0 '+lg+' 0 '+x3+' '+y3+'Z';
+    out+='<path class="sl'+(i.on?' on':'')+'" d="'+d+'" style="fill:'+i.color+'" '+i.attrs+' role="button" tabindex="0" aria-pressed="'+!!i.on+'" aria-label="'+esc(i.label)+' '+fmt(i.v)+' ('+pct(i.v,tot)+')"><title>'+esc(i.label)+' · '+fmt(i.v)+' ครั้ง · '+pct(i.v,tot)+'</title></path>';
+    a0+=ang;
+  }
+  return '<svg class="donut'+(sel?' sel':'')+'" viewBox="0 0 180 180" role="group" aria-label="'+esc(aria)+'">'+out+'<text x="90" y="88" font-size="19" font-weight="700">'+big+'</text><text x="90" y="106" font-size="11" style="opacity:.7">'+small+'</text></svg>';
+}
+function drawVehicles(){
+  const m=new Map();
+  for(const k of ['ADAS','DMS']) for(const r of S.recs[k]){ if(r.d<S.from||r.d>S.to) continue; const o=m.get(r.plate)||{plate:r.plate,ADAS:0,DMS:0}; o[k]+=r.n; m.set(r.plate,o); }
+  let rows=[...m.values()].map(o=>({...o,tot:o.ADAS+o.DMS}));
+  const key=S.vsort; rows.sort((a,b)=>b[key]-a[key]);
+  const mx=Math.max(1,...rows.map(r=>r.tot)); const show=S.showAllV?rows:rows.slice(0,12);
+  const th=(k,l)=>'<th class="sortable" tabindex="0" data-k="'+k+'" aria-sort="'+(S.vsort===k?'descending':'none')+'">'+l+(S.vsort===k?' ▼':'')+'</th>';
+  $('vehicles').innerHTML='<table class="t"><thead><tr><th>ทะเบียน</th><th>ชื่อรถ</th>'+th('ADAS','ADAS')+th('DMS','DMS')+th('tot','รวม')+'</tr></thead><tbody>'+
+    show.map(r=>'<tr class="pick'+(S.vpick===r.plate?' on':'')+'" tabindex="0" data-p="'+esc(r.plate)+'"><td>'+esc(r.plate)+'</td><td>'+esc(S.names[r.plate]||'')+'</td><td>'+fmt(r.ADAS)+'</td><td>'+fmt(r.DMS)+'</td><td><span class="minibar" style="width:'+Math.round(r.tot/mx*80)+'px;background:var(--teal)"></span>'+fmt(r.tot)+'</td></tr>').join('')+'</tbody></table>';
+  const b=$('btnMoreV'); b.hidden=rows.length<=12; b.textContent=S.showAllV?'แสดงเฉพาะ 12 อันดับแรก':'แสดงทั้งหมด '+rows.length+' คัน';
+}
+const cleanDr=v=>{ v=(v||'').trim(); return v==='-'?'':v; };
+const tstr=sec=>String(Math.floor(sec/3600)).padStart(2,'0')+':'+String(Math.floor(sec%3600/60)).padStart(2,'0');
+let drvTok=0;
+async function drawDrivers(){
+  const box=$('drivers'); if(!box) return; const tok=++drvTok;
+  const kinds=S.drvKind==='ADAS'||S.drvKind==='DMS'?[S.drvKind]:['ADAS','DMS'];
+  box.innerHTML='<div class="empty" style="padding:20px 0">กำลังโหลด…</div>';
+  const all=new Map(), tru=new Map(); let unk=0, tot=0, totT=0;
+  try{
+    for(const k of kinds){
+      const docs=await ensureEvents(k); if(tok!==drvTok) return;
+      for(const doc of docs){
+        if(doc.d<S.from||doc.d>S.to) continue; const s=doc.s, r=doc.r;
+        for(let i=0;i<r.length;i+=7){
+          if(S.plate&&s[r[i+1]]!==S.plate) continue;
+          const dr=cleanDr(s[r[i+3]]), isT=r[i+5]===1; tot++; if(isT) totT++;
+          if(!dr){ unk++; continue; }
+          all.set(dr,(all.get(dr)||0)+1); if(isT) tru.set(dr,(tru.get(dr)||0)+1);
+        }
+      }
+    }
+  }catch(e){ if(tok===drvTok) box.innerHTML='<div class="empty err">โหลดไม่สำเร็จ: '+esc(e&&e.message||'error')+'</div>'; return; }
+  const col=(title,m,total,color,mode)=>{
+    const L=[...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,10), mx=Math.max(1,L[0]?L[0][1]:1);
+    return '<div class="dcol"><h4>'+title+'</h4>'+(L.length?L.map((x,i)=>'<div class="drow pk'+(S.dpick&&S.dpick.dr===x[0]&&S.dpick.m===mode?' on':'')+'" role="button" tabindex="0" aria-pressed="'+!!(S.dpick&&S.dpick.dr===x[0]&&S.dpick.m===mode)+'" data-dr="'+esc(x[0])+'" data-m="'+mode+'" title="คลิกเพื่อดูรายละเอียดของ '+esc(x[0])+'"><span class="rk">'+(i+1)+'</span><span class="nm" title="'+esc(x[0])+'">'+esc(x[0])+'</span><span class="tr"><i style="width:'+Math.max(1,x[1]/mx*100)+'%;background:'+color+'"></i></span><b>'+fmt(x[1])+'</b><span class="pc">'+pct(x[1],total)+'</span></div>').join(''):'<div class="empty" style="padding:14px 0">ไม่มีข้อมูล</div>')+'</div>';
+  };
+  box.innerHTML='<div class="pie">'+col('10 อันดับ · ตรวจพบทั้งหมด',all,tot,'var(--teal)','all')+'</div><div class="pie">'+col('10 อันดับ · เฉพาะ True',tru,totT,'var(--r-true)','true')+'</div>';
+  $('drvNote').textContent=unk?'ไม่นับ '+fmt(unk)+' รายการที่ไม่ระบุชื่อผู้ขับ (เปอร์เซ็นต์คิดจากทุกรายการรวมที่ไม่ระบุ)':'';
+}
+
+/* ---------- driver trend (month vs month) ---------- */
+const TR={kind:'ALL',m:'all',min:5,a:'',b:'',grp:'',sort:'d',desc:true,all:false,dirty:true};
+const TG={crit:['เสี่ยงสูง · ยอดสูงและเพิ่มขึ้น','var(--r-true)','▲'],hid:['ซ่อนเสี่ยง · ยอดน้อยแต่กำลังเพิ่ม','#c27a00','▲'],pers:['สูงต่อเนื่อง · ยังไม่ลดลง','var(--s2)','■'],imp:['ปรับตัวดีขึ้น · ลดลง','var(--s3)','▼'],stb:['ทรงตัว · ยอดต่ำ','var(--sx)','■']};
+const curTab=()=>{ const b=document.querySelector('#tabs [aria-selected="true"]'); return b?b.dataset.tab:'ov'; };
+let trTok=0, trRows=[];
+function spark(v,color){
+  const w=96,h=26,mx=Math.max(1,...v),n=v.length; const X=i=>n===1?w/2:2+i*(w-4)/(n-1), Y=x=>h-3-(x/mx)*(h-6);
+  return '<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" aria-hidden="true"><path d="'+v.map((x,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(x).toFixed(1)).join('')+'" fill="none" stroke="'+color+'" stroke-width="1.8" stroke-linejoin="round"/><circle cx="'+X(n-1)+'" cy="'+Y(v[n-1])+'" r="2.6" fill="'+color+'"/></svg>';
+}
+async function drawTrend(){
+  const box=$('trBody'); if(!box) return; const tok=++trTok; TR.dirty=false;
+  const kinds=TR.kind==='ADAS'||TR.kind==='DMS'?[TR.kind]:['ADAS','DMS'], only=TR.m==='true';
+  const dayset=new Set(); for(const k of kinds) for(const d of S.days[k]) if(d>=S.from&&d<=S.to) dayset.add(d);
+  const dd={}; for(const d of dayset){ const m=d.slice(0,7); dd[m]=(dd[m]||0)+1; }
+  const months=Object.keys(dd).sort();
+  const fill=(id,val)=>{ const el=$(id); el.innerHTML=months.map(m=>'<option value="'+m+'">'+fmtMonth(m)+' ('+dd[m]+' วัน)</option>').join(''); el.value=val; };
+  if(months.length<2){ $('trA').innerHTML=$('trB').innerHTML=''; box.innerHTML='<div class="empty" style="padding:24px 0">ต้องมีข้อมูลอย่างน้อย 2 เดือนในช่วงวันที่ที่เลือก (ตอนนี้มี '+months.length+' เดือน) · ขยายช่วงวันที่ในแถบด้านบน</div>'; return; }
+  if(!months.includes(TR.a)||!months.includes(TR.b)||TR.a>=TR.b){ TR.a=months[months.length-2]; TR.b=months[months.length-1]; }
+  fill('trA',TR.a); fill('trB',TR.b);
+  box.innerHTML='<div class="empty" style="padding:20px 0">กำลังโหลด…</div>';
+  const per=new Map(); let unk=0;
+  try{
+    for(const k of kinds){
+      const docs=await ensureEvents(k); if(tok!==trTok) return;
+      for(const doc of docs){
+        if(doc.d<S.from||doc.d>S.to) continue; const sd=doc.s, r=doc.r, mo=doc.d.slice(0,7);
+        for(let i=0;i<r.length;i+=7){
+          if(only&&r[i+5]!==1) continue; if(S.plate&&sd[r[i+1]]!==S.plate) continue;
+          const dr=cleanDr(sd[r[i+3]]); if(!dr){ unk++; continue; }
+          let o=per.get(dr); if(!o) per.set(dr,o={});
+          o[mo]=(o[mo]||0)+1;
+        }
+      }
+    }
+  }catch(e){ if(tok===trTok) box.innerHTML='<div class="empty err">โหลดไม่สำเร็จ: '+esc(e&&e.message||'error')+'</div>'; return; }
+  let rows=[];
+  for(const [dr,o] of per){
+    const ra=o[TR.a]||0, rb=o[TR.b]||0; if(ra+rb<TR.min) continue;
+    rows.push({dr,ra,rb,d:rb-ra,pc:ra>0?(rb-ra)/ra:null,g:rb>ra?'up':rb<ra?'dn':'eq'});
+  }
+  trRows=rows;
+  const cnt={up:0,dn:0,eq:0}; for(const r of rows) cnt[r.g]++;
+  const cd=(g,color,ar,txt)=>'<button type="button" data-g="'+g+'" aria-pressed="'+(TR.grp===g)+'" style="border-left-color:'+color+'"><b style="color:'+color+'">'+ar+' '+fmt(cnt[g])+' คน</b><span><strong>'+txt+'</strong> · '+esc(fmtMonth(TR.a))+' → '+esc(fmtMonth(TR.b))+'</span></button>';
+  const cards='<div class="trg" style="grid-template-columns:repeat(auto-fit,minmax(240px,320px))">'+cd('up','var(--r-true)','▲','เพิ่มขึ้น')+cd('dn','var(--s3)','▼','ลดลง')+'</div>';
+  const vis=rows.filter(r=>!TR.grp||r.g===TR.grp);
+  const sg=TR.desc?-1:1, cmp={d:(a,b)=>(a.d-b.d)*sg,p:(a,b)=>((a.pc===null?1e9:a.pc)-(b.pc===null?1e9:b.pc))*sg,nm:(a,b)=>a.dr.localeCompare(b.dr,'th')*-sg,ra:(a,b)=>(a.ra-b.ra)*sg,rb:(a,b)=>(a.rb-b.rb)*sg}[TR.sort]||((a,b)=>b.d-a.d);
+  const list=[...vis].sort(cmp), show=TR.all?list:list.slice(0,40);
+  const th=(k,l,cls)=>'<th class="sortable'+(cls?' '+cls:'')+'" tabindex="0" data-s="'+k+'" aria-sort="'+(TR.sort===k?(TR.desc?'descending':'ascending'):'none')+'">'+l+(TR.sort===k?(TR.desc?' ▼':' ▲'):'')+'</th>';
+  const cmpLine=r=>{
+    const col=r.g==='up'?'var(--r-true)':r.g==='dn'?'var(--s3)':'var(--sx)', mx=Math.max(1,r.ra,r.rb), Y=v=>24-3-(v/mx)*18;
+    const ar=r.g==='up'?'▲':r.g==='dn'?'▼':'–';
+    return '<svg width="64" height="26" viewBox="0 0 64 26" role="img" aria-label="'+(r.g==='up'?'เพิ่มขึ้น':r.g==='dn'?'ลดลง':'เท่าเดิม')+'"><path d="M6 '+Y(r.ra).toFixed(1)+'L58 '+Y(r.rb).toFixed(1)+'" fill="none" stroke="'+col+'" stroke-width="2.2" stroke-linecap="round"/><circle cx="6" cy="'+Y(r.ra).toFixed(1)+'" r="3" fill="var(--card)" stroke="'+col+'" stroke-width="2"/><circle cx="58" cy="'+Y(r.rb).toFixed(1)+'" r="3.4" fill="'+col+'"/></svg> <b style="color:'+col+'">'+ar+'</b>';
+  };
+  const tbl='<div class="dtools"><span class="info">แสดง '+fmt(show.length)+' จาก '+fmt(list.length)+' คน'+(TR.grp?' · เฉพาะที่'+(TR.grp==='up'?'เพิ่มขึ้น':'ลดลง'):'')+' · ขั้นต่ำ '+TR.min+' ครั้งรวมสองเดือน</span></div><div class="tscroll"><table class="t"><thead><tr>'+th('nm','ผู้ขับ','l')+'<th>เปรียบเทียบ</th>'+th('ra',esc(fmtMonth(TR.a)))+th('rb',esc(fmtMonth(TR.b)))+th('d','เพิ่ม/ลด (+/−)')+th('p','% เปลี่ยนแปลง')+'</tr></thead><tbody>'+
+    show.map(r=>{ const c=r.g==='up'?'var(--r-true)':r.g==='dn'?'var(--s3)':'inherit';
+      return '<tr><td class="l">'+esc(r.dr)+'</td><td>'+cmpLine(r)+'</td><td>'+fmt(r.ra)+'</td><td>'+fmt(r.rb)+'</td><td><b style="color:'+c+'">'+(r.d>0?'+':r.d<0?'−':'')+fmt(Math.abs(r.d))+'</b></td><td><b style="color:'+c+'">'+(r.pc===null?(r.rb?'ใหม่':'–'):(r.pc>0?'+':r.pc<0?'−':'')+Math.round(Math.abs(r.pc)*100)+'%')+'</b></td></tr>'; }).join('')+'</tbody></table></div>'+
+    (list.length>40?'<button class="chip" id="trMore" type="button" style="margin-top:8px">'+(TR.all?'แสดงเฉพาะ 40 อันดับแรก':'แสดงทั้งหมด '+list.length+' คน')+'</button>':'')+
+    '<p class="note">จำนวนครั้งจริงในแต่ละเดือน · เดือนที่มีข้อมูลไม่ครบจะมีจำนวนต่ำกว่าความจริง (ดูจำนวนวันที่มีข้อมูลในช่องเลือกเดือน)'+(unk?' · ไม่นับ '+fmt(unk)+' รายการที่ไม่ระบุชื่อผู้ขับ':'')+'</p>';
+  box.innerHTML=cards+tbl;
+}
+const BK=[['ดึก (00:00–05:59)',0,6],['เช้า (06:00–11:59)',6,12],['บ่าย (12:00–17:59)',12,18],['ค่ำ (18:00–23:59)',18,24]];
+function clockHtml(rows,sel){
+  sel=(sel===undefined||sel==='')?-1:+sel; const inSel=h=>sel<0||(h>=BK[sel][1]&&h<BK[sel][2]);
+  const T=rows.filter(x=>x.res===1);
+  if(!T.length) return '<div class="clock"><div class="ins"><h4>ช่วงเวลาที่เกิด Alarm (เฉพาะ True)</h4><div class="empty" style="padding:14px 0">ไม่มีรายการ True ตามตัวกรองที่เลือก จึงไม่มีกราฟนาฬิกา</div></div></div>';
+  const H=Array.from({length:24},()=>new Map()), tot=new Array(24).fill(0), alT=new Map(), col=new Map();
+  for(const x of T){ const h=Math.min(23,Math.floor(x.t/3600)); tot[h]++; H[h].set(x.al,(H[h].get(x.al)||0)+1); alT.set(x.al,(alT.get(x.al)||0)+1); if(!col.has(x.al)) col.set(x.al,colorFor(x.k,x.al)); }
+  const order=[...alT.entries()].sort((a,b)=>b[1]-a[1]).map(e=>e[0]);
+  const mx=Math.max(...tot), pk=tot.indexOf(mx), cx=170, cy=170, r0=40, r1=112;
+  const pol=(r,d)=>{ const a=(d-90)*Math.PI/180; return [(cx+r*Math.cos(a)).toFixed(2),(cy+r*Math.sin(a)).toFixed(2)]; };
+  const wedge=(ra,rb,d0,d1)=>{ const [a,b]=pol(rb,d0),[c,d]=pol(rb,d1),[e,f]=pol(ra,d1),[g,h]=pol(ra,d0); return 'M'+a+' '+b+'A'+rb+' '+rb+' 0 0 1 '+c+' '+d+'L'+e+' '+f+'A'+ra+' '+ra+' 0 0 0 '+g+' '+h+'Z'; };
+  const hh=h=>String(h).padStart(2,'0'), rng=h=>hh(h)+':00–'+hh(h)+':59';
+  let g='';
+  for(const f of [.25,.5,.75,1]) g+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r0+(r1-r0)*f).toFixed(1)+'" fill="none" stroke="var(--line,rgba(128,128,128,.3))" stroke-dasharray="2 3"/>';
+  for(let h=0;h<24;h++){
+    const d0=h*15+.6, d1=h*15+14.4, night=h<6||h>=18;
+    g+='<path d="'+wedge(120,128,h*15,h*15+15)+'" style="fill:'+(night?'#3d4d6e':'#f0b93a')+'"><title>'+rng(h)+' · '+(night?'กลางคืน':'กลางวัน')+'</title></path>';
+    let base=r0; const tip=rng(h)+' · True '+tot[h]+' ครั้ง'+[...H[h].entries()].sort((a,b)=>b[1]-a[1]).map(([a,n])=>'\n'+a+': '+n).join('');
+    for(const a of order){ const n=H[h].get(a); if(!n) continue; const top=base+(r1-r0)*n/mx; g+='<path class="wd" d="'+wedge(base,top,d0,d1)+'" style="fill:'+col.get(a)+(inSel(h)?'':';opacity:.18')+'"><title>'+esc(tip)+'</title></path>'; base=top; }
+  }
+  for(let h=0;h<24;h+=3){ const [x0,y0]=pol(r0,h*15),[x1,y1]=pol(130,h*15); g+='<line x1="'+x0+'" y1="'+y0+'" x2="'+x1+'" y2="'+y1+'" stroke="var(--line,rgba(128,128,128,.4))" stroke-width="'+(h%6?0.6:1)+'"/>'; }
+  const lab={0:'เที่ยงคืน ☾',6:'เช้า',12:'เที่ยงวัน ☀',18:'เย็น'};
+  for(let h=0;h<24;h+=3){ const [x,y]=pol(143,h*15), [x2,y2]=pol(155,h*15);
+    g+='<text x="'+x+'" y="'+(+y+4)+'" text-anchor="middle" font-size="11" font-weight="600">'+hh(h)+':00</text>'+(lab[h]!==undefined?'<text class="sub" x="'+x2+'" y="'+(+y2+(h===0?-1:h===12?10:4))+'" text-anchor="middle">'+lab[h]+'</text>':''); }
+  const [px,py]=pol(r1+2,pk*15+7.5); 
+  g+='<path d="'+wedge(r0-1,r1+3,pk*15,pk*15+15)+'" fill="none" stroke="var(--ink)" stroke-width="1.6" stroke-dasharray="3 2"/>';
+  g+='<text x="'+cx+'" y="'+(cy-2)+'" text-anchor="middle" font-size="20" font-weight="700">'+fmt(T.length)+'</text><text class="sub" x="'+cx+'" y="'+(cy+13)+'" text-anchor="middle">True ทั้งหมด</text>';
+  const svg='<svg viewBox="0 0 340 340" role="img" aria-label="กราฟนาฬิกา 24 ชั่วโมง แสดงช่วงเวลาที่เกิด Alarm ที่เป็น True">'+g+'</svg>';
+  const B=BK.map(([n,a,b])=>[n,tot.slice(a,b).reduce((x,y)=>x+y,0)]);
+  const bm=Math.max(...B.map(b=>b[1])), top3=tot.map((n,h)=>[h,n]).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  const peakAl=order.map(a=>{ let bh=0,bn=0; for(let h=0;h<24;h++){ const n=H[h].get(a)||0; if(n>bn){ bn=n; bh=h; } } return [a,bh,bn,alT.get(a)]; });
+  let selBox='';
+  if(sel>=0){
+    const am=new Map(); let ts=0; for(let h=BK[sel][1];h<BK[sel][2];h++){ ts+=tot[h]; for(const [a,n] of H[h]) am.set(a,(am.get(a)||0)+n); }
+    const L=[...am.entries()].sort((a,b)=>b[1]-a[1]), mxx=L.length?L[0][1]:1;
+    selBox='<div style="border:2px solid var(--teal);border-radius:12px;padding:8px 10px;margin-bottom:10px"><div><b>'+esc(BK[sel][0])+'</b> · True '+fmt(ts)+' ครั้ง · เจอบ่อยสุด: <b>'+(L.length?esc(L[0][0])+' ('+fmt(L[0][1])+' · '+pct(L[0][1],ts)+')':'–')+'</b></div>'+
+      L.map(([a,n])=>'<div style="display:grid;grid-template-columns:minmax(120px,200px) 1fr 44px 52px;gap:8px;align-items:center;font-size:12.5px;padding:2px 0"><span><i class="sw" style="background:'+col.get(a)+'"></i> '+esc(a)+'</span><span class="tr" style="height:8px;background:var(--soft);border-radius:4px;overflow:hidden"><i style="display:block;height:100%;width:'+Math.max(2,n/mxx*100)+'%;background:'+col.get(a)+'"></i></span><b style="text-align:right">'+fmt(n)+'</b><span style="text-align:right;color:var(--muted)">'+pct(n,ts)+'</span></div>').join('')+'</div>';
+  }
+  const ins='<div class="ins"><h4>อ่านกราฟ: ความยาวแท่ง = จำนวน True ในชั่วโมงนั้น · 00:00 อยู่บนสุด เดินตามเข็มนาฬิกา · แถบนอก ■ น้ำเงิน = กลางคืน (18:00–05:59), ■ เหลือง = กลางวัน (06:00–17:59)</h4>'+
+    '<div><b>ช่วงที่เกิดบ่อยสุด:</b> '+rng(pk)+' ('+fmt(mx)+' ครั้ง)'+' · รองลงมา '+top3.slice(1).map(x=>hh(x[0])+':00 ('+fmt(x[1])+')').join(', ')+'</div>'+
+    '<div class="hint" style="margin:8px 0 0">คลิกช่วงเวลาเพื่อดูว่าช่วงนั้นเจออะไรบ่อยสุด และกรองตารางด้านล่างตามไปด้วย</div><div class="bkl">'+B.map((b,i)=>'<button type="button" data-b="'+i+'" aria-pressed="'+(sel===i)+'"><span>'+b[0]+'</span><span class="n">'+fmt(b[1])+'</span><b>'+pct(b[1],T.length)+(b[1]===bm?' ◀':'')+'</b></button>').join('')+'</div>'+selBox+
+    '<div><b>ชนิด Alarm · ชั่วโมงที่เกิดบ่อยสุด</b></div><div class="bk">'+peakAl.map(p=>'<span><i class="sw" style="background:'+col.get(p[0])+'"></i> '+esc(p[0])+'</span><span class="n">'+rng(p[1])+'</span><b>'+fmt(p[2])+'/'+fmt(p[3])+'</b>').join('')+'</div></div>';
+  return '<div class="clock"><div style="flex:0 0 340px;max-width:100%"><p class="desc" style="margin:0 0 4px;font-weight:600">ช่วงเวลาที่เกิด Alarm · เฉพาะ True · เวลาไทย 24 ชม.</p>'+svg+'</div>'+ins+'</div>';
+}
+let dpTok=0;
+async function renderDPanel(){
+  const box=$('dpanel'), P=S.dpick; if(!box) return;
+  if(!P){ box.hidden=true; box.innerHTML=''; return; }
+  const tok=++dpTok; box.hidden=false;
+  const only=P.m==='true', kinds=S.drvKind==='ADAS'||S.drvKind==='DMS'?[S.drvKind]:['ADAS','DMS'];
+  const title='<h3><span>'+esc(P.dr)+'</span><span style="font-weight:300;color:var(--ink2)">'+(only?'เฉพาะ True':'ทุกผลการตรวจสอบ')+' · '+(kinds.length>1?'ADAS + DMS':kinds[0])+(S.plate?' · รถ '+esc(S.plate):'')+'</span><button class="chip x" id="dpClose" type="button">ปิดรายละเอียด</button></h3>';
+  if(!P.rows){
+    box.innerHTML=title+'<div class="empty" style="padding:18px 0">กำลังโหลด…</div>';
+    const rows=[];
+    try{
+      for(const k of kinds){
+        const docs=await ensureEvents(k); if(tok!==dpTok) return;
+        for(const doc of docs){
+          if(doc.d<S.from||doc.d>S.to) continue; const sd=doc.s, r=doc.r;
+          for(let i=0;i<r.length;i+=7){
+            if(cleanDr(sd[r[i+3]])!==P.dr) continue; if(only&&r[i+5]!==1) continue;
+            const pl=sd[r[i+1]]; if(S.plate&&pl!==S.plate) continue;
+            rows.push({d:doc.d,t:r[i],pl,k,al:sd[r[i+2]],res:r[i+5],loc:(sd[r[i+4]]||'||').split('|')});
+          }
+        }
+      }
+    }catch(e){ if(tok===dpTok) box.innerHTML=title+'<div class="empty err">โหลดไม่สำเร็จ: '+esc(e&&e.message||'error')+'</div>'; return; }
+    if(tok!==dpTok) return;
+    rows.sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:a.t-b.t); P.rows=rows; P.page=0; P.desc=true;
+  }
+  const Fl=P.f||(P.f={from:'',to:'',pl:'',al:'',b:''}), allR=P.rows; if(Fl.b===undefined) Fl.b='';
+  const inB=x=>{ if(Fl.b==='') return true; const h=Math.floor(x.t/3600); return h>=BK[+Fl.b][1]&&h<BK[+Fl.b][2]; };
+  const base=allR.filter(x=>(!Fl.from||x.d>=Fl.from)&&(!Fl.to||x.d<=Fl.to)&&(!Fl.al||x.al===Fl.al));
+  const rowsNoB=Fl.pl?base.filter(x=>x.pl===Fl.pl):base, rows=rowsNoB.filter(inB), baseB=base.filter(inB), n=rows.length, pages=Math.max(1,Math.ceil(n/PAGE)); P.page=Math.min(P.page||0,pages-1);
+  const dmin=allR.length?allR[0].d:'', dmax=allR.length?allR[allR.length-1].d:'';
+  const opts=(arr,cur,all)=>'<option value="">'+all+'</option>'+arr.map(v=>'<option value="'+esc(v)+'"'+(v===cur?' selected':'')+'>'+esc(v)+'</option>').join('');
+  const ctl='<div class="dtools" style="margin-top:12px;gap:8px 10px"><label style="font-size:13px">ตั้งแต่ <input type="date" id="dpF" value="'+Fl.from+'" min="'+dmin+'" max="'+dmax+'"></label><label style="font-size:13px">ถึง <input type="date" id="dpT" value="'+Fl.to+'" min="'+dmin+'" max="'+dmax+'"></label><select id="dpPl" aria-label="ทะเบียน">'+opts([...new Set(allR.map(x=>x.pl))].sort(),Fl.pl,'ทุกทะเบียน')+'</select><select id="dpAl" aria-label="ชนิด Alarm">'+opts([...new Set(allR.map(x=>x.al))].sort(),Fl.al,'ทุกชนิด Alarm')+'</select><button class="chip" id="dpReset" type="button">ล้างตัวกรอง</button></div>';
+  const byPl=new Map(); for(const x of baseB){ let o=byPl.get(x.pl); if(!o) byPl.set(x.pl,o={pl:x.pl,n:0,t:0,days:new Set(),a:x.d,z:x.d}); o.n++; if(x.res===1) o.t++; o.days.add(x.d); if(x.d<o.a) o.a=x.d; if(x.d>o.z) o.z=x.d; }
+  const PL=[...byPl.values()].sort((a,b)=>b.n-a.n);
+  if(!n){ box.innerHTML=title+(allR.length?clockHtml(rowsNoB,Fl.b):'')+ctl+'<div class="empty" style="padding:18px 0">ไม่พบรายการที่ตรงกับตัวกรอง'+(Fl.b!==''?' ('+BK[+Fl.b][0]+')':'')+'</div>'; return; }
+  const from=P.page*PAGE, to=Math.min(n,from+PAGE);
+  let body=''; for(let j=from;j<to;j++){ const x=rows[P.desc?n-1-j:j];
+    body+='<tr><td class="l">'+esc(fmtDate(x.d))+'</td><td>'+String(Math.floor(x.t/3600)).padStart(2,'0')+':'+String(Math.floor(x.t%3600/60)).padStart(2,'0')+':'+String(x.t%60).padStart(2,'0')+'</td><td class="l">'+esc(x.pl)+'</td><td class="l">'+esc(S.names[x.pl]||'')+'</td><td class="l">'+x.k+'</td><td class="l">'+esc(x.al)+'</td><td class="l">'+RES_NAME[x.res]+'</td><td class="l">'+esc(x.loc[0]||'–')+'</td><td class="l">'+esc(x.loc[1]||'–')+'</td><td class="l">'+esc(x.loc[2]||'–')+'</td></tr>'; }
+  box.innerHTML=title+clockHtml(rowsNoB,Fl.b)+'<p class="desc" style="margin:10px 0 6px">'+(Fl.b!==''?'<b>ช่วง'+esc(BK[+Fl.b][0])+'</b> · ':'')+'ขับรถทะเบียนไหนบ้าง · '+PL.length+' คัน · '+fmt(baseB.length)+' ครั้ง (คลิกแถวเพื่อกรองตามทะเบียน)</p><div class="tscroll" style="max-height:260px"><table class="t"><thead><tr><th class="l">ทะเบียน</th><th class="l">ชื่อรถ</th><th>ครั้งที่พบ</th><th>True</th><th>จำนวนวัน</th><th class="l">ช่วงวันที่</th></tr></thead><tbody>'+
+    PL.map(o=>'<tr class="pick'+(Fl.pl===o.pl?' on':'')+'" data-pl="'+esc(o.pl)+'" title="คลิกเพื่อกรองเฉพาะทะเบียนนี้"><td class="l">'+esc(o.pl)+'</td><td class="l">'+esc(S.names[o.pl]||'')+'</td><td>'+fmt(o.n)+'</td><td>'+fmt(o.t)+'</td><td>'+o.days.size+'</td><td class="l">'+esc(fmtDate(o.a)+(o.a===o.z?'':' – '+fmtDate(o.z)))+'</td></tr>').join('')+'</tbody></table></div>'+
+    ctl+'<div class="dtools" style="margin-top:12px"><button class="chip" id="dpSort" type="button">'+(P.desc?'เรียง: ใหม่ → เก่า':'เรียง: เก่า → ใหม่')+'</button><span class="sp"></span><span class="info">แสดง '+fmt(from+1)+'–'+fmt(to)+' จาก '+fmt(n)+' รายการ · หน้า '+(P.page+1)+'/'+pages+'</span><button class="chip" id="dpPrev" type="button"'+(P.page<=0?' disabled':'')+'>‹ ก่อนหน้า</button><button class="chip" id="dpNext" type="button"'+(P.page>=pages-1?' disabled':'')+'>ถัดไป ›</button></div>'+
+    '<div class="tscroll" id="dpTable"><table class="t"><thead><tr><th class="l">วันที่</th><th>เวลา</th><th class="l">ทะเบียนรถ</th><th class="l">ชื่อรถ</th><th class="l">ระบบ</th><th class="l">Alarm</th><th class="l">ผลตรวจ</th><th class="l">ตำบล</th><th class="l">อำเภอ</th><th class="l">จังหวัด</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+}
+let vpTok=0;
+async function renderVPanel(){
+  const box=$('vpanel'), pl=S.vpick; if(!box) return;
+  if(!pl){ box.hidden=true; box.innerHTML=''; return; }
+  const tok=++vpTok; box.hidden=false;
+  box.innerHTML='<h3>รถ '+esc(pl)+(S.names[pl]?' · '+esc(S.names[pl]):'')+' <button class="chip x" id="vpFilter" type="button">กรองทั้งแดชบอร์ดด้วยรถคันนี้</button><button class="chip" id="vpClose" type="button">ปิด</button></h3><div class="empty" style="padding:18px 0">กำลังโหลดผู้ขับ…</div>';
+  const byDr=new Map(), sess=new Map();
+  try{
+    for(const k of ['ADAS','DMS']){
+      const docs=await ensureEvents(k); if(tok!==vpTok) return;
+      for(const doc of docs){
+        if(doc.d<S.from||doc.d>S.to) continue; const s=doc.s, r=doc.r;
+        for(let i=0;i<r.length;i+=7){
+          if(s[r[i+1]]!==pl) continue;
+          const dr=cleanDr(s[r[i+3]])||'ไม่ระบุผู้ขับ', t=r[i], isT=r[i+5]===1;
+          let o=byDr.get(dr); if(!o) byDr.set(dr,o={dr,n:0,t:0,days:new Set(),a:'9',z:'0'});
+          o.n++; if(isT) o.t++; o.days.add(doc.d); if(doc.d<o.a) o.a=doc.d; if(doc.d>o.z) o.z=doc.d;
+          const key=doc.d+'|'+dr; let q=sess.get(key); if(!q) sess.set(key,q={d:doc.d,dr,a:t,z:t,A:0,D:0});
+          if(t<q.a) q.a=t; if(t>q.z) q.z=t; q[k==='ADAS'?'A':'D']++;
+        }
+      }
+    }
+  }catch(e){ if(tok===vpTok) box.innerHTML+='<div class="empty err">โหลดไม่สำเร็จ: '+esc(e&&e.message||'error')+'</div>'; return; }
+  if(tok!==vpTok) return;
+  const D=[...byDr.values()].sort((a,b)=>b.n-a.n), S2=[...sess.values()].sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:a.a-b.a);
+  const head='<h3><span>รถ '+esc(pl)+(S.names[pl]?' · '+esc(S.names[pl]):'')+'</span><span style="font-weight:300;color:var(--ink2)">'+D.length+' ผู้ขับ · '+fmt(D.reduce((x,o)=>x+o.n,0))+' ครั้ง</span><button class="chip x" id="vpFilter" type="button">กรองทั้งแดชบอร์ดด้วยรถคันนี้</button><button class="chip" id="vpClose" type="button">ปิด</button></h3>';
+  if(!D.length){ box.innerHTML=head+'<div class="empty" style="padding:18px 0">ไม่พบรายละเอียดรายเหตุการณ์ของรถคันนี้ในช่วงที่เลือก</div>'; return; }
+  box.innerHTML=head+'<p class="desc" style="margin:4px 0 6px">ใครขับรถคันนี้ (เรียงตามจำนวนครั้งที่ตรวจพบ)</p><div class="tscroll"><table class="t"><thead><tr><th class="l">ผู้ขับ</th><th>จำนวนวัน</th><th>ครั้งที่พบ</th><th>True</th><th class="l">ช่วงวันที่</th></tr></thead><tbody>'+
+    D.map(o=>'<tr><td class="l">'+esc(o.dr)+'</td><td>'+o.days.size+'</td><td>'+fmt(o.n)+'</td><td>'+fmt(o.t)+'</td><td class="l">'+esc(fmtDate(o.a)+(o.a===o.z?'':' – '+fmtDate(o.z)))+'</td></tr>').join('')+'</tbody></table></div>'+
+    '<p class="desc" style="margin:12px 0 6px">ขับวันไหน เวลาใด (ช่วงเวลาตั้งแต่เหตุการณ์แรกถึงล่าสุดของวันนั้น)</p><div class="tscroll" style="max-height:360px"><table class="t"><thead><tr><th class="l">วันที่</th><th class="l">ผู้ขับ</th><th>เวลา</th><th>ADAS</th><th>DMS</th></tr></thead><tbody>'+
+    S2.slice(0,300).map(q=>'<tr><td class="l">'+esc(fmtDate(q.d))+'</td><td class="l">'+esc(q.dr)+'</td><td>'+tstr(q.a)+(q.a===q.z?'':' – '+tstr(q.z))+'</td><td>'+q.A+'</td><td>'+q.D+'</td></tr>').join('')+'</tbody></table></div>'+(S2.length>300?'<p class="note">แสดง 300 รายการล่าสุดจาก '+fmt(S2.length)+'</p>':'');
+}
+function gaps(set){
+  const a=[...set].sort(); if(a.length<2) return '–'; const out=[]; let t=Date.parse(a[0]); const e=Date.parse(a[a.length-1]); let start=null;
+  for(;t<=e+1;t+=864e5){ const d=new Date(t).toISOString().slice(0,10); const miss=t<=e&&!set.has(d);
+    if(miss&&!start) start=d; if(!miss&&start){ const prev=new Date(t-864e5).toISOString().slice(0,10); out.push(start===prev?fmtDate(start).slice(0,-5):fmtDate(start).slice(0,-5)+'–'+fmtDate(prev).slice(0,-5)); start=null; } }
+  return out.length?(out.length>8?out.slice(0,8).join(', ')+' และอีก '+(out.length-8)+' ช่วง':out.join(', ')):'ครบทุกวัน';
+}
+function drawStatus(){
+  const card=k=>{ const a=[...S.days[k]].sort(); const total=S.recs[k].reduce((s,r)=>s+r.n,0);
+    return '<div><h3><i class="sw" style="background:'+KIND_COLOR[k]+'"></i> '+k+'</h3><dl><dt>ช่วงข้อมูล</dt><dd>'+(a.length?fmtDate(a[0])+' – '+fmtDate(a[a.length-1]):'–')+'</dd><dt>วันที่มีข้อมูล</dt><dd>'+a.length+' วัน</dd><dt>การแจ้งเตือนสะสม</dt><dd>'+fmt(total)+' ครั้ง</dd><dt>วันที่ขาด</dt><dd>'+gaps(S.days[k])+'</dd></dl></div>'; };
+  const logs=S.logs.length?'<div style="grid-column:1/-1"><h3>การอัพโหลดล่าสุด</h3><div class="tscroll"><table class="t"><thead><tr><th>เวลา</th><th>ชนิด</th><th>ไฟล์</th><th>แถว</th><th>วันที่</th></tr></thead><tbody>'+
+    S.logs.map(l=>'<tr><td>'+fmtTs(l.ts)+'</td><td>'+esc(l.kind)+'</td><td style="text-align:left">'+esc(l.file)+'</td><td>'+fmt(l.rows)+'</td><td>'+esc(fmtDate(l.from)+' – '+fmtDate(l.to))+' ('+l.days+' วัน)</td></tr>').join('')+'</tbody></table></div></div>':'';
+  $('status').innerHTML=card('ADAS')+card('DMS')+logs;
+}
+
+
+/* ---------- drill-down: result -> alarm type -> event table ---------- */
+const RES_NAME=['Not Checked','True','False','No Video'], RES_COLOR=['var(--r-nc)','var(--r-true)','var(--r-false)','var(--r-nv)'];
+const PAGE=100; let drillTok=0;
+function alarmCounts(kind,res){
+  const m=new Map();
+  for(const r of S.recs[kind]){
+    if(r.d<S.from||r.d>S.to) continue; if(S.plate&&r.plate!==S.plate) continue;
+    const v=res===1?r.t:res===2?r.f:res===3?r.v:(r.n-r.t-r.f-r.v);
+    if(v>0) m.set(r.alarm,(m.get(r.alarm)||0)+v);
+  }
+  return [...m.entries()].sort((a,b)=>b[1]-a[1]);
+}
+function ensureEvents(kind){
+  const months=new Set();
+  for(const d of S.days[kind]) if(d>=S.from&&d<=S.to&&S.ec[kind+'-'+d]>0) months.add(d.slice(0,7));
+  return Promise.all([...months].sort().map(m=>{
+    const key=kind+m;
+    if(!S.evP[key]) S.evP[key]=withRetry(()=>db.collection('ev_'+kind+'_'+m).limit(1000).get()).then(snap=>
+      snap.docs.map(x=>x.data()).filter(Boolean).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:a.n-b.n)).catch(e=>{ delete S.evP[key]; throw e; });
+    return S.evP[key];
+  })).then(list=>list.flat());
+}
+function drillToggle(kind,res){
+  const D=S.drill;
+  if(D&&D.kind===kind&&D.res===res) S.drill=null; else S.drill={kind,res,alarm:'',q:'',page:0,desc:false,fresh:true};
+  const A=S.drill; drawResultOnly(); renderDrill();
+  if(A&&A.fresh){ A.fresh=false; $('drill').scrollIntoView({behavior:'smooth',block:'nearest'}); }
+}
+function drawResultOnly(){ /* re-render only the result cards so selection state shows */
+  const periods=periodsFor(); drawResultCards(aggregate('ADAS',periods),aggregate('DMS',periods));
+}
+function renderDrill(){
+  const box=$('drill'), D=S.drill;
+  if(!D){ box.hidden=true; box.innerHTML=''; return; }
+  const list=alarmCounts(D.kind,D.res), total=list.reduce((s,x)=>s+x[1],0), mx=Math.max(1,...list.map(x=>x[1]));
+  if(D.alarm&&!list.some(x=>x[0]===D.alarm)) D.alarm='';
+  const kc=KIND_COLOR[D.kind];
+  box.hidden=false;
+  box.innerHTML='<h3><i class="sw" style="background:'+kc+'"></i>'+D.kind+' · <span style="display:inline-flex;align-items:center;gap:6px"><i class="sw" style="background:'+RES_COLOR[D.res]+'"></i>'+RES_NAME[D.res]+'</span>'+
+    '<span style="font-weight:300;color:var(--ink2)">'+fmt(total)+' ครั้ง'+(S.plate?' · รถ '+esc(S.plate):'')+'</span>'+
+    '<button class="chip x" id="dClose" type="button">ปิดรายละเอียด</button></h3>'+
+    '<p class="desc" style="margin:4px 0 0">แยกตามชนิด Alarm · คลิกแท่งเพื่อกรองตารางด้านล่าง</p>'+
+    (list.length?'<div class="dflex"><div class="dpie">'+donut(list.map(([a,n])=>({label:a,v:n,color:colorFor(D.kind,a),attrs:'data-a="'+esc(a)+'"',on:D.alarm===a})),!!D.alarm,fmt(total),RES_NAME[D.res],'สัดส่วน Alarm ชนิดต่าง ๆ')+'</div><div class="abars" role="group" aria-label="แยกตามชนิด Alarm">'+
+      list.map(([a,n])=>'<button type="button" class="abar" data-a="'+esc(a)+'" aria-pressed="'+(D.alarm===a)+'" title="'+esc((KNOWN[a]||[])[1]||'')+'"><span class="nm"><i class="sw" style="background:'+colorFor(D.kind,a)+'"></i><span>'+esc(a)+'</span></span><span class="tr"><i style="width:'+Math.max(1,n/mx*100)+'%;background:'+colorFor(D.kind,a)+'"></i></span><b>'+fmt(n)+'</b><span class="pc">'+pct(n,total)+'</span></button>').join('')+'</div></div>':'<div class="empty" style="padding:16px 0">ไม่มีรายการ '+RES_NAME[D.res]+' ในช่วงที่เลือก</div>')+
+    (list.length?'<div class="dtools"><input type="search" id="dQ" placeholder="ค้นหา ทะเบียน / ผู้ขับ / สถานที่" aria-label="ค้นหารายละเอียด" value="'+esc(D.q)+'"><button class="chip" id="dSort" type="button"></button><span class="sp"></span><span class="info" id="dInfo"></span><button class="chip" id="dPrev" type="button">‹ ก่อนหน้า</button><button class="chip" id="dNext" type="button">ถัดไป ›</button></div><div class="tscroll" id="dTable"></div><p class="note" id="dNote"></p>':'');
+  if(list.length) fillTable();
+}
+async function fillTable(){
+  const D=S.drill; if(!D) return; const tok=++drillTok, tb=$('dTable'); if(!tb) return;
+  $('dSort').textContent=D.desc?'เรียง: ใหม่ → เก่า':'เรียง: เก่า → ใหม่';
+  if(!Object.keys(S.evP).length||![...S.days[D.kind]].every(d=>d<S.from||d>S.to||!(S.ec[D.kind+'-'+d]>0)?true:S.evP[D.kind+d.slice(0,7)]))
+    tb.innerHTML='<div class="empty" style="padding:24px 0">กำลังโหลดรายละเอียด…</div>';
+  let docs;
+  try{ docs=await ensureEvents(D.kind); }catch(e){ if(tok===drillTok) tb.innerHTML='<div class="empty err" style="padding:24px 0">โหลดรายละเอียดไม่สำเร็จ: '+esc(e&&e.message||e&&e.code||'error')+'</div>'; return; }
+  if(tok!==drillTok||S.drill!==D) return;
+  const q=D.q.trim().toLowerCase(), mD=[], mI=[];
+  for(const doc of docs){
+    if(doc.d<S.from||doc.d>S.to) continue; const s=doc.s, r=doc.r;
+    for(let i=0;i<r.length;i+=7){
+      if(r[i+5]!==D.res) continue;
+      const al=s[r[i+2]]; if(D.alarm&&al!==D.alarm) continue;
+      const pl=s[r[i+1]]; if(S.plate&&pl!==S.plate) continue;
+      if(q&&!(pl+' '+(S.names[pl]||'')+' '+s[r[i+3]]+' '+s[r[i+4]]+' '+al+' '+s[r[i+6]]).toLowerCase().includes(q)) continue;
+      mD.push(doc); mI.push(i);
+    }
+  }
+  const n=mD.length, pages=Math.max(1,Math.ceil(n/PAGE)); D.page=Math.min(D.page,pages-1);
+  const from=D.page*PAGE, to=Math.min(n,from+PAGE);
+  let anyDesc=false, rows='';
+  for(let j=from;j<to;j++){
+    const p=D.desc?n-1-j:j, doc=mD[p], i=mI[p], s=doc.s, r=doc.r;
+    if(s[r[i+6]]) anyDesc=true;
+  }
+  for(let j=from;j<to;j++){
+    const p=D.desc?n-1-j:j, doc=mD[p], i=mI[p], s=doc.s, r=doc.r, sec=r[i];
+    const pl=s[r[i+1]], loc=(s[r[i+4]]||'||').split('|'), t=String(Math.floor(sec/3600)).padStart(2,'0')+':'+String(Math.floor(sec%3600/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
+    rows+='<tr><td class="l">'+esc(fmtDate(doc.d))+'</td><td>'+t+'</td><td class="l">'+esc(pl)+'</td><td class="l">'+esc(S.names[pl]||'')+'</td><td class="l">'+esc(s[r[i+3]]||'–')+'</td><td class="l">'+esc(s[r[i+2]])+'</td>'+
+      (anyDesc||D.kind==='DMS'?'<td class="l w">'+esc(s[r[i+6]]||'–')+'</td>':'')+'<td class="l">'+esc(loc[0]||'–')+'</td><td class="l">'+esc(loc[1]||'–')+'</td><td class="l">'+esc(loc[2]||'–')+'</td></tr>';
+  }
+  tb.innerHTML=n?'<table class="t"><thead><tr><th class="l">วันที่</th><th>เวลา</th><th class="l">ทะเบียนรถ</th><th class="l">ชื่อรถ</th><th class="l">ผู้ขับ</th><th class="l">Alarm</th>'+(anyDesc||D.kind==='DMS'?'<th class="l">รายละเอียด</th>':'')+'<th class="l">ตำบล</th><th class="l">อำเภอ</th><th class="l">จังหวัด</th></tr></thead><tbody>'+rows+'</tbody></table>':'<div class="empty" style="padding:24px 0">ไม่พบรายการที่ตรงกับตัวกรอง</div>';
+  $('dInfo').textContent=n?('แสดง '+fmt(from+1)+'–'+fmt(to)+' จาก '+fmt(n)+' รายการ · หน้า '+(D.page+1)+'/'+pages):'0 รายการ';
+  $('dPrev').disabled=D.page<=0; $('dNext').disabled=D.page>=pages-1;
+  const expected=alarmCounts(D.kind,D.res).filter(x=>!D.alarm||x[0]===D.alarm).reduce((s,x)=>s+x[1],0);
+  $('dNote').textContent=(!q&&n<expected)?'มีรายละเอียดรายเหตุการณ์ '+fmt(n)+' จาก '+fmt(expected)+' รายการ (บางวันยังไม่เคยเก็บรายละเอียด) · อัพไฟล์ของวันนั้นอีกครั้งเพื่อเพิ่มรายละเอียด':'';
+}
+document.addEventListener('click',e=>{
+  const rb=e.target.closest('#res [data-k], #pies [data-k]'); if(rb&&!rb.disabled){ drillToggle(rb.dataset.k,+rb.dataset.r); return; }
+  const D=S.drill; if(!D) return;
+  if(e.target.closest('#dClose')){ S.drill=null; drawResultOnly(); renderDrill(); return; }
+  const ab=e.target.closest('.abar, .sl[data-a]'); if(ab){ D.alarm=D.alarm===ab.dataset.a?'':ab.dataset.a; D.page=0; renderDrill(); return; }
+  if(e.target.closest('#dSort')){ D.desc=!D.desc; D.page=0; fillTable(); return; }
+  if(e.target.closest('#dPrev')){ D.page=Math.max(0,D.page-1); fillTable(); $('dTable').scrollTop=0; return; }
+  if(e.target.closest('#dNext')){ D.page++; fillTable(); $('dTable').scrollTop=0; return; }
+});
+document.addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key===' ')&&e.target.classList&&e.target.classList.contains('sl')){ e.preventDefault(); e.target.dispatchEvent(new MouseEvent('click',{bubbles:true})); } });
+document.addEventListener('input',e=>{ if(e.target.id==='dQ'&&S.drill){ const D=S.drill; D.q=e.target.value; D.page=0; clearTimeout(window.__dq); window.__dq=setTimeout(fillTable,200); } });
+
+/* ---------- upload ---------- */
+let worker=null, pending=null;
+function workerSrc(){
+  return 'const parseFile='+parseFile.toString()+';\nonmessage=async e=>{try{const r=await parseFile(e.data.file,e.data.kind,m=>postMessage(m));postMessage({type:"done",result:r});}catch(err){postMessage({type:"error",message:String(err&&err.message||err)});}};';
+}
+function runParse(file,kind,onProgress){
+  return new Promise((resolve,reject)=>{
+    let w=null;
+    try{ w=new Worker(URL.createObjectURL(new Blob([workerSrc()],{type:'text/javascript'}))); }catch(e){ w=null; }
+    if(!w){ parseFile(file,kind,onProgress).then(resolve,reject); return; }
+    worker=w;
+    w.onmessage=e=>{ const m=e.data; if(m.type==='progress') onProgress(m); else if(m.type==='done'){ w.terminate(); resolve(m.result); } else { w.terminate(); reject(new Error(m.message)); } };
+    w.onerror=ev=>{ w.terminate(); parseFile(file,kind,onProgress).then(resolve,reject); };
+    w.postMessage({file,kind});
+  });
+}
+function showPanel(html){ $('upWrap').hidden=false; $('upPanel').innerHTML=html; $('upPanel').scrollIntoView({block:'nearest'}); }
+function closePanel(){ $('upWrap').hidden=true; $('upPanel').innerHTML=''; pending=null; S.busy=false; setButtons(); }
+function setButtons(){ const off=!db||S.busy||S.canWrite===false; $('btnAdas').disabled=off; $('btnDms').disabled=off;
+  const why=S.canWrite===false?'บัญชีนี้ดูข้อมูลได้อย่างเดียว ต้องมีสิทธิ์แก้ไขเพื่ออัพไฟล์':!db?'ยังเชื่อมต่อฐานข้อมูลไม่ได้':''; $('btnAdas').title=$('btnDms').title=why; }
+async function handleFile(file,kind){
+  if(!file) return;
+  if(!/\.xls[xm]$/i.test(file.name)){ toast('รองรับเฉพาะไฟล์ .xlsx','bad'); return; }
+  S.busy=true; setButtons();
+  showPanel('<h2>กำลังอ่านไฟล์ '+kind+': '+esc(file.name)+'</h2><div class="bar"><i id="pb"></i></div><div class="meta" id="pt">เริ่มอ่านไฟล์ ('+(file.size/1048576).toFixed(1)+' MB)…</div>');
+  try{
+    const t0=Date.now();
+    const r=await runParse(file,kind,m=>{ const pb=$('pb'); if(pb){pb.style.width=Math.round(m.frac*100)+'%'; $('pt').textContent='อ่านแล้ว '+fmt(m.rows)+' แถว · '+Math.round(m.frac*100)+'%';} });
+    const dayKeys=Object.keys(r.days).sort();
+    if(!dayKeys.length) throw new Error('ไม่พบแถวข้อมูลที่มีวันที่ถูกต้องในไฟล์');
+    const other=kind==='ADAS'?'DMS':'ADAS';
+    if(r.cats.length && r.cats.every(c=>c.toUpperCase()===other)) throw new Error('ไฟล์นี้เป็นข้อมูล '+other+' แต่กดปุ่มอัพไฟล์ '+kind+' · กรุณาเลือกปุ่มให้ตรงกับไฟล์');
+    const plates=new Set(), al=new Map(); let n=0;
+    for(const d of dayKeys) for(const k in r.days[d]){ const i=k.indexOf('|'); plates.add(k.slice(0,i)); const a=k.slice(i+1); al.set(a,(al.get(a)||0)+r.days[d][k][0]); n+=r.days[d][k][0]; }
+    const overlap=dayKeys.filter(d=>S.days[kind].has(d)).length;
+    pending={kind,file:file.name,r,dayKeys,n,plates};
+    showPanel('<h2>ตรวจไฟล์ '+kind+' เรียบร้อย · '+esc(file.name)+'</h2>'+
+      '<div class="stats"><div class="stat"><b>'+fmt(r.rows)+'</b><span>แถวในไฟล์'+(r.skipped?' (ข้าม '+fmt(r.skipped)+' แถวที่ไม่มีวันที่)':'')+'</span></div>'+
+      '<div class="stat"><b>'+dayKeys.length+' วัน</b><span>'+fmtDate(dayKeys[0])+' – '+fmtDate(dayKeys[dayKeys.length-1])+'</span></div>'+
+      '<div class="stat"><b>'+plates.size+' คัน</b><span>รถที่มีการแจ้งเตือน</span></div>'+
+      '<div class="stat"><b>'+al.size+' ชนิด</b><span>'+esc([...al.keys()].slice(0,4).join(', ')+(al.size>4?'…':''))+'</span></div></div>'+
+      '<div class="meta">'+(overlap?'<b>'+overlap+' วัน</b> ในไฟล์มีข้อมูลเดิมอยู่แล้ว จะถูกแทนที่ด้วยข้อมูลจากไฟล์นี้ (อัพไฟล์ซ้ำจึงไม่ทำให้ตัวเลขเบิ้ล) · ':'ทั้งหมดเป็นวันใหม่ · ')+'วันที่ไม่อยู่ในไฟล์จะไม่ถูกแตะต้อง · อ่านใช้เวลา '+((Date.now()-t0)/1000).toFixed(1)+' วินาที</div>'+
+      '<div class="row" style="margin-top:12px"><button class="pbtn go" id="btnCommit" type="button">บันทึกเข้าแดชบอร์ด</button><button class="pbtn no" id="btnCancel" type="button">ยกเลิก</button></div>');
+    $('btnCommit').onclick=commit; $('btnCancel').onclick=closePanel;
+  }catch(err){
+    showPanel('<h2 class="err">อ่านไฟล์ไม่สำเร็จ</h2><div class="meta">'+esc(err.message||String(err))+'</div><div class="row" style="margin-top:10px"><button class="pbtn no" id="btnCancel" type="button">ปิด</button></div>');
+    $('btnCancel').onclick=closePanel; S.busy=false; setButtons();
+  }
+}
+async function withRetry(fn){
+  let wait=400;
+  for(let i=0;;i++){ try{ return await fn(); }catch(e){
+    const c=e&&e.code; if(i<4&&(c==='unavailable'||c==='resource_exhausted')){ await new Promise(r=>setTimeout(r,wait+Math.random()*300)); wait*=2; continue; } throw e; } }
+}
+async function commit(){
+  const P=pending; if(!P) return; const {kind,r,dayKeys}=P;
+  $('btnCommit').disabled=true; $('btnCancel').disabled=true;
+  const ts=Date.now(); let done=0, failed=null, daysDone=0;
+  const EV_CH=4000;                                   // events per detail document (7 numbers each)
+  const partsOf=d=>Math.ceil(((r.ev&&r.ev[d])||[]).length/7/EV_CH);
+  const totalDocs=dayKeys.length+dayKeys.reduce((a,d)=>a+partsOf(d),0);
+  const up=()=>{ $('pb').style.width=Math.round(done/totalDocs*100)+'%'; $('pt').textContent='บันทึกแล้ว '+daysDone+' / '+dayKeys.length+' วัน ('+done+' / '+totalDocs+' เอกสาร)'; };
+  $('upPanel').insertAdjacentHTML('beforeend','<div class="bar"><i id="pb"></i></div><div class="meta" id="pt">กำลังบันทึก…</div>');
+  const queue=dayKeys.slice();
+  async function lane(){
+    while(queue.length&&!failed){
+      const d=queue.shift(); const rows=r.days[d]; let n=0; for(const k in rows) n+=rows[k][0];
+      const aggPath='agg'+d.slice(0,4)+'/'+kind+'-'+d, evColl='ev_'+kind+'_'+d.slice(0,7);
+      try{
+        const old=await withRetry(()=>db.doc(aggPath).get()); const oldParts=(old.exists&&old.data().ec)||0;
+        const flat=(r.ev&&r.ev[d])||[], np=partsOf(d);
+        for(let part=0;part<np;part++){
+          const s=[''], ix=new Map([['',0]]); const L=i=>{ const t=r.strs[i]; let j=ix.get(t); if(j===undefined){ j=s.length; s.push(t); ix.set(t,j); } return j; };
+          const out=[]; const a=part*EV_CH*7, b=Math.min(flat.length,a+EV_CH*7);
+          for(let i=a;i<b;i+=7) out.push(flat[i],L(flat[i+1]),L(flat[i+2]),L(flat[i+3]),L(flat[i+4]),flat[i+5],L(flat[i+6]));
+          await withRetry(()=>db.doc(evColl+'/'+kind+'-'+d+'-'+part).set({d,n:part,s,r:out})); done++; up();
+        }
+        for(let part=np;part<oldParts;part++) await withRetry(()=>db.doc(evColl+'/'+kind+'-'+d+'-'+part).delete());
+        await withRetry(()=>db.doc(aggPath).set({kind,d,rows,n,ec:np,up:ts})); done++; daysDone++; up();
+      }catch(e){ failed=e; }
+    }
+  }
+  try{
+    await Promise.all([lane(),lane(),lane()]);
+    if(failed) throw failed;
+    const years=[...new Set(dayKeys.map(d=>+d.slice(0,4)))];
+    const cur=await db.doc('meta/info').get(); const old=(cur.exists&&cur.data())||{};
+    const ys=[...new Set([...(old.years||[]),...years])].sort();
+    const kinds=Object.assign({},old.kinds||{}); kinds[kind]=ts;
+    await withRetry(async()=>{ const vs=await db.doc('meta/vehicles').get(); const m=Object.assign({},(vs.exists&&vs.data().m)||{},r.names); await db.doc('meta/vehicles').set({m}); });
+    await withRetry(()=>db.collection('uploads').add({ts,kind,file:P.file,rows:r.rows,from:dayKeys[0],to:dayKeys[dayKeys.length-1],days:dayKeys.length}));
+    await withRetry(()=>db.doc('meta/info').set({years:ys,ts,kinds}));
+    S.info={years:ys,ts,kinds}; await loadAll();
+    toast('บันทึกข้อมูล '+kind+' เรียบร้อย ('+dayKeys.length+' วัน, '+fmt(P.n)+' ครั้ง)');
+    closePanel();
+  }catch(e){
+    let msg=e&&e.message||String(e); const c=e&&e.code;
+    if(c==='quota_exceeded') msg='พื้นที่ฐานข้อมูลเต็ม · '+msg; else if(c==='invalid_argument') msg='บัญชีนี้ไม่มีสิทธิ์บันทึกข้อมูล หรือข้อมูลไม่ถูกต้อง · '+msg;
+    showPanel('<h2 class="err">บันทึกไม่สำเร็จ</h2><div class="meta">'+esc(msg)+'<br>วันที่บันทึกไปแล้ว '+daysDone+' จาก '+dayKeys.length+' วัน อัพไฟล์เดิมซ้ำได้ ระบบจะแทนที่วันเดิมให้ถูกต้อง</div><div class="row" style="margin-top:10px"><button class="pbtn no" id="btnCancel" type="button">ปิด</button></div>');
+    $('btnCancel').onclick=closePanel;
+    try{ await loadAll(); }catch(_){}
+  }finally{ S.busy=false; setButtons(); }
+}
+
+/* ---------- wiring ---------- */
+$('btnAdas').onclick=()=>{ $('fileAdas').value=''; $('fileAdas').click(); };
+$('btnDms').onclick=()=>{ $('fileDms').value=''; $('fileDms').click(); };
+$('fileAdas').onchange=e=>handleFile(e.target.files[0],'ADAS');
+$('fileDms').onchange=e=>handleFile(e.target.files[0],'DMS');
+function setRange(a,b){ S.from=a; S.to=b; render(); }
+$('dFrom').onchange=e=>{ if(e.target.value) { S.from=e.target.value; if(S.from>S.to) S.to=S.from; render(); } };
+$('dTo').onchange=e=>{ if(e.target.value) { S.to=e.target.value; if(S.to<S.from) S.from=S.to; render(); } };
+$('pAll').onclick=()=>setRange(S.gmin,S.gmax);
+$('p30').onclick=()=>{ if(!S.gmax) return; const d=new Date(Date.parse(S.gmax)-29*864e5).toISOString().slice(0,10); setRange(d<S.gmin?S.gmin:d,S.gmax); };
+$('pLast').onclick=()=>{ if(!S.gmax) return; const a=S.gmax.slice(0,8)+'01'; setRange(a<S.gmin?S.gmin:a,S.gmax); };
+$('selPlate').onchange=e=>{ S.plate=e.target.value; render(); };
+$('segGran').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; S.gran=b.dataset.v; for(const x of $('segGran').children) x.setAttribute('aria-pressed',x===b); render(); };
+$('btnMoreV').onclick=()=>{ S.showAllV=!S.showAllV; drawVehicles(); };
+$('vehicles').addEventListener('click',e=>{
+  const th=e.target.closest('th.sortable'); if(th){ S.vsort=th.dataset.k; drawVehicles(); return; }
+  const tr=e.target.closest('tr.pick'); if(tr){ S.vpick=S.vpick===tr.dataset.p?null:tr.dataset.p; drawVehicles(); renderVPanel(); if(S.vpick) $('vpanel').scrollIntoView({behavior:'smooth',block:'nearest'}); }
+});
+$('vpanel').addEventListener('click',e=>{
+  if(e.target.closest('#vpClose')){ S.vpick=null; drawVehicles(); renderVPanel(); }
+  else if(e.target.closest('#vpFilter')){ S.plate=S.vpick; $('selPlate').value=S.plate; S.vpick=null; render(); scrollTo({top:0,behavior:'smooth'}); }
+});
+$('drvSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.drvKind=b.dataset.v; for(const x of $('drvSeg').children) x.setAttribute('aria-pressed',x===b); if(S.dpick) S.dpick.rows=null; drawDrivers(); renderDPanel(); });
+$('drivers').addEventListener('click',e=>{ const r=e.target.closest('.drow.pk'); if(!r) return; const P=S.dpick; S.dpick=(P&&P.dr===r.dataset.dr&&P.m===r.dataset.m)?null:{dr:r.dataset.dr,m:r.dataset.m}; for(const x of document.querySelectorAll('#drivers .drow.pk')){ const on=!!S.dpick&&x.dataset.dr===S.dpick.dr&&x.dataset.m===S.dpick.m; x.classList.toggle('on',on); x.setAttribute('aria-pressed',on); } renderDPanel(); if(S.dpick) $('dpanel').scrollIntoView({behavior:'smooth',block:'nearest'}); });
+$('drivers').addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('pk')){ e.preventDefault(); e.target.click(); } });
+$('dpanel').addEventListener('change',e=>{ const P=S.dpick; if(!P||!P.f) return; const m={dpF:'from',dpT:'to',dpPl:'pl',dpAl:'al'}[e.target.id]; if(!m) return; P.f[m]=e.target.value; P.page=0; renderDPanel(); });
+$('dpanel').addEventListener('click',e=>{ const P=S.dpick; if(!P) return;
+  const pr=e.target.closest('tr.pick[data-pl]'); if(pr){ P.f.pl=P.f.pl===pr.dataset.pl?'':pr.dataset.pl; P.page=0; renderDPanel(); return; }
+  const bb=e.target.closest('button[data-b]'); if(bb){ P.f.b=P.f.b===bb.dataset.b?'':bb.dataset.b; P.page=0; renderDPanel(); return; }
+  if(e.target.closest('#dpReset')){ P.f={from:'',to:'',pl:'',al:'',b:''}; P.page=0; renderDPanel(); return; }
+  if(e.target.closest('#dpClose')){ S.dpick=null; for(const x of document.querySelectorAll('#drivers .drow.pk')){ x.classList.remove('on'); x.setAttribute('aria-pressed','false'); } renderDPanel(); }
+  else if(e.target.closest('#dpSort')){ P.desc=!P.desc; P.page=0; renderDPanel(); }
+  else if(e.target.closest('#dpPrev')){ P.page=Math.max(0,P.page-1); renderDPanel(); }
+  else if(e.target.closest('#dpNext')){ P.page++; renderDPanel(); } });
+$('vehicles').addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.target.matches('tr.pick')){ e.target.click(); return; } if((e.key==='Enter'||e.key===' ')&&e.target.matches('th.sortable')){ e.preventDefault(); S.vsort=e.target.dataset.k; drawVehicles(); } });
+function setTab(k,focus){
+  const ids=[...document.querySelectorAll('#tabs button')].map(b=>b.dataset.tab); if(!ids.includes(k)) k='ov';
+  for(const b of document.querySelectorAll('#tabs button')){ const on=b.dataset.tab===k; b.setAttribute('aria-selected',on); b.tabIndex=on?0:-1; if(on&&focus) b.focus(); }
+  for(const sc of document.querySelectorAll('.sec[data-tab]')) sc.hidden=sc.dataset.tab!==k;
+  try{ localStorage.setItem('dashTab',k); }catch(e){}
+  if(k==='trd'&&S.loaded&&TR.dirty) drawTrend();
+  if(k==='ov') requestAnimationFrame(()=>{ if(S.loaded&&charts.length) charts.forEach(f=>f()); });
+}
+$('tabs').addEventListener('click',e=>{ const b=e.target.closest('button[data-tab]'); if(b) setTab(b.dataset.tab); });
+$('tabs').addEventListener('keydown',e=>{ const bs=[...document.querySelectorAll('#tabs button')], i=bs.indexOf(document.activeElement); if(i<0) return;
+  const j=e.key==='ArrowRight'?(i+1)%bs.length:e.key==='ArrowLeft'?(i+bs.length-1)%bs.length:e.key==='Home'?0:e.key==='End'?bs.length-1:-1; if(j>=0){ e.preventDefault(); setTab(bs[j].dataset.tab,true); } });
+{ let t='ov'; try{ t=localStorage.getItem('dashTab')||'ov'; }catch(e){} setTab(t); }
+
+$('trKind').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; TR.kind=b.dataset.v; for(const x of $('trKind').children) x.setAttribute('aria-pressed',x===b); drawTrend(); });
+$('trMode').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; TR.m=b.dataset.v; for(const x of $('trMode').children) x.setAttribute('aria-pressed',x===b); drawTrend(); });
+$('trA').addEventListener('change',e=>{ TR.a=e.target.value; if(TR.b<=TR.a) TR.b=''; drawTrend(); });
+$('trB').addEventListener('change',e=>{ TR.b=e.target.value; if(TR.a>=TR.b) TR.a=''; drawTrend(); });
+$('trMin').addEventListener('change',e=>{ TR.min=+e.target.value; drawTrend(); });
+$('trBody').addEventListener('click',e=>{
+  const g=e.target.closest('button[data-g]'); if(g){ TR.grp=TR.grp===g.dataset.g?'':g.dataset.g; drawTrend(); return; }
+  const th=e.target.closest('th[data-s]'); if(th){ const k=th.dataset.s; if(TR.sort===k) TR.desc=!TR.desc; else{ TR.sort=k; TR.desc=k!=='nm'; } drawTrend(); return; }
+  if(e.target.closest('#trMore')){ TR.all=!TR.all; drawTrend(); } });
+$('trBody').addEventListener('keydown',e=>{ if(e.key!=='Enter'&&e.key!==' ') return; const th=e.target.closest('th[data-s]'); if(th){ e.preventDefault(); th.click(); } });
+let rz; new ResizeObserver(()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if(S.loaded&&charts.length) charts.forEach(f=>f()); },120); }).observe($('main'));
+
+/* ---------- boot ---------- */
+(async function boot(){
+  try{ db=await claude.use('db'); }catch(e){ db=null; }
+  try{ userCap=await claude.use('user'); S.canWrite=userCap&&userCap.can?userCap.can('data.write'):null; }catch(e){ userCap=null; }
+  setButtons();
+  if(!db){ $('loading').innerHTML='ยังเชื่อมต่อฐานข้อมูลไม่ได้ · เปิดหน้านี้ผ่าน claude.ai และเข้าสู่ระบบเพื่อดูและอัพโหลดข้อมูล'; $('srcLine').textContent='ไม่ได้เชื่อมต่อฐานข้อมูล'; return; }
+  let first=true;
+  db.doc('meta/info').onSnapshot(async snap=>{
+    const d=snap.exists?snap.data():null;
+    if(!first&&S.busy) return;
+    if(!first&&d&&S.info&&d.ts===S.info.ts) return;
+    first=false; S.info=d;
+    try{ await loadAll(); }catch(e){ $('loading').hidden=false; $('app').hidden=true; $('loading').textContent='โหลดข้อมูลไม่สำเร็จ: '+(e&&e.message||e); }
+  },e=>{ $('loading').textContent='อ่านฐานข้อมูลไม่ได้ ('+(e&&e.code||'error')+')'; });
+})();
+</script>
+
+</body></html>
